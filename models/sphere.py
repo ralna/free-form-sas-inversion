@@ -11,7 +11,7 @@ Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
 
-def G(q, r, drho):
+def G_sphere(q, r, drho):
 
     # sphere volume
     V = 4/3 * np.pi * r ** 3

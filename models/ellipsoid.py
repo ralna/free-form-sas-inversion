@@ -15,7 +15,7 @@ Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
 
-def G(qx, qy, rp, re, theta, phi, drho):
+def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
 
     # ellipsoid volume
     V = 4/3 * np.pi * rp * re ** 2

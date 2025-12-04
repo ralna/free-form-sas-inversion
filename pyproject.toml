@@ -1,10 +1,9 @@
 [project]
 name = "ffsi"
-dynamic = ["version"]
+version = "0.0.1"
 dependencies = [
-    "setuptools",
     "numpy",
     "scipy",
     "ttpy"
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"

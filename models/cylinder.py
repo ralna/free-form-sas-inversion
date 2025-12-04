@@ -16,7 +16,7 @@ Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 import numpy as np
 from scipy.special import j1
 
-def G(qx, qy, l, r, theta, phi, drho):
+def G_cylinder(qx, qy, l, r, theta, phi, drho):
 
     # cylinder volume
     V = np.pi * l * r ** 2
