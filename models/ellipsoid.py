@@ -2,11 +2,20 @@
 SAS Ellipsoid Model
 https://www.sasview.org/docs/user/models/ellipsoid.html
 
+Parameters:
+qx - scattering vector x component
+qy - scattering vector y component
+rp - polar radius
+re - equatorial radius
+theta - ellipsoid axis to beam angle
+phi - ellipsoid rotation about beam
+drho - difference between scattering length densities
+
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
 
-def G(qx, qy, re, rp, theta, phi, drho):
+def G(qx, qy, rp, re, theta, phi, drho):
 
     # ellipsoid volume
     V = 4/3 * np.pi * rp * re ** 2

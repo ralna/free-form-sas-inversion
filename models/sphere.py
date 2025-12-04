@@ -2,6 +2,11 @@
 SAS Sphere Model
 https://www.sasview.org/docs/user/models/sphere.html
 
+Parameters:
+q - scattering vector
+r - sphere radius
+drho - difference between scattering length densities
+
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np

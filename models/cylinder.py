@@ -2,6 +2,15 @@
 SAS Cylinder Model
 https://www.sasview.org/docs/user/models/cylinder.html
 
+Parameters:
+qx - scattering vector x component
+qy - scattering vector y component
+l - cylinder length
+r - cylinder radius
+theta - cylinder axis to beam angle
+phi - cylinder rotation about beam
+drho - difference between scattering length densities
+
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
