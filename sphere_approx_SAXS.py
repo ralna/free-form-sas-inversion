@@ -1,5 +1,5 @@
 """
-Low-rank Sphere Green's function approximation
+Low-rank Sphere Green's function approximation (SAXS Data)
 https://www.sasview.org/docs/user/models/sphere.html
 
 Parameters:
@@ -16,21 +16,18 @@ import tt
 # for plotting
 import matplotlib.pyplot as plt
 
+# load real SAXS data
+data = np.loadtxt('data/SAXS/observation_corrected.txt')
+q = data[:,0]
+nq = len(q)
+
 # contrast
 drho = 1
 
-# q discretisation
-ql = 1e-3
-qu = 1
-nq = 200
-
 # r discretisation
 rl = 400
-ru = 800
-nr = 500
-
-# discretise q and r
-q = np.linspace(ql, qu, nq)
+ru = 1200
+nr = 1000
 r = np.linspace(rl, ru, nr)
 
 # FIXME: forming full G should not be required!
@@ -46,10 +43,10 @@ for iq in range(nq):
 s = np.linalg.svd(G, compute_uv=False)
 plt.semilogy(s/s[0])
 plt.grid()
-plt.title("Sphere Green's Function (Benchmark)")
+plt.title("Sphere Green's Function (SAXS Data)")
 plt.xlabel('Singular Value Index')
 plt.ylabel('Normalised Singular Value')
-plt.savefig('sphere_eigs.png')
+plt.savefig('sphere_SAXS_eigs.png')
 
 # form low-rank TT-representation
 tol = 1e-6
