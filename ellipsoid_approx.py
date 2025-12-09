@@ -24,34 +24,34 @@ import matplotlib.pyplot as plt
 drho = 1
 
 # qx discretisation
+qxl = -75
+qxu = 75
 nqx = 10
-qxl = 0.00145
-qxu = 0.09995
 
 # qy discretisation
+qyl = -75
+qyu = 75
 nqy = 10
-qyl = 0.00145
-qyu = 0.09995
 
 # rp discretisation
+rpl = 50
+rpu = 90
 nrp = 10
-rpl = 500
-rpu = 800
 
 # re discretisation
+rel = 100
+reu = 180
 nre = 10
-rel = 500
-reu = 800
 
 # theta discretisation
+thetal = 5/180 * np.pi
+thetau = 60/180 * np.pi
 ntheta = 10
-thetal = 50/180 * np.pi
-thetau = 90/180 * np.pi
 
 # phi discretisation
+phil = 150/180 * np.pi
+phiu = 240/180 * np.pi
 nphi = 10
-phil = 10/180 * np.pi
-phiu = 40/180 * np.pi
 
 # discretise q, l, r, theta, phi
 qx = np.linspace(qxl, qxu, nqx)
@@ -63,6 +63,7 @@ phi = np.linspace(phil, phiu, nphi)
 
 # FIXME: forming full G should not be required!
 # form Green's function
+print("Forming full Green's function tensor...")
 # TODO: check if SASView has any vectorisation
 G = np.zeros((nqx,nqy,nrp,nre,ntheta,nphi))
 for iqx in range(nqx):
