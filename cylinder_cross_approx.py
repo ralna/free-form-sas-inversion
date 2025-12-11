@@ -24,13 +24,13 @@ import time
 drho = 1
 
 # qx discretisation
-qxl = -75
-qxu = 75
+qxl = -0.75
+qxu = 0.75
 nqx = 10
 
 # qy discretisation
-qyl = -75
-qyu = 75
+qyl = -0.75
+qyu = 0.75
 nqy = 10
 
 # l discretisation
