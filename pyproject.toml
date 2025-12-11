@@ -3,7 +3,6 @@ name = "ffsi"
 version = "0.0.1"
 dependencies = [
     "numpy",
-    "scipy",
-    "ttpy"
+    "scipy"
 ]
 requires-python = ">=3.10"
