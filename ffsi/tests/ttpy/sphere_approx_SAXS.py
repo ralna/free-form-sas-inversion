@@ -10,14 +10,14 @@ drho - difference between scattering length densities
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
-from models.sphere import G_sphere
+from ffsi.models.sphere import G_sphere
 import tt
 
 # for plotting
 import matplotlib.pyplot as plt
 
 # load real SAXS data
-data = np.loadtxt('data/SAXS/observation_corrected.txt')
+data = np.loadtxt('ffsi/data/SAXS/observation_corrected.txt')
 q = data[:,0]
 nq = len(q)
 

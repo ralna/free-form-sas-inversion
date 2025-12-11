@@ -14,8 +14,8 @@ drho - difference between scattering length densities
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
-from models.cylinder import G_cylinder
-from greedy.cross import greedy_cross
+from ffsi.models.cylinder import G_cylinder
+from ...greedy.cross import greedy_cross
 
 # for timing
 import time
@@ -23,35 +23,39 @@ import time
 # contrast
 drho = 1
 
-# qx, qy discretisation
-nqx = 40
-nqy = 40
-q_side = np.logspace(-2, 0, 50) # log scale on the sides
-q_center = np.linspace(-0.0095, 0.0095, 20) # linear scale in the cente
-qx = np.hstack((-q_side, q_center, q_side))
-qy = qx.copy()
+# qx discretisation
+qxl = -0.75
+qxu = 0.75
+nqx = 10
+
+# qy discretisation
+qyl = -0.75
+qyu = 0.75
+nqy = 10
 
 # l discretisation
 ll = 200
 lu = 600
-nl = 40
+nl = 10
 
 # r discretisation
 rl = 50
 ru = 90
-nr = 40
+nr = 10
 
 # theta discretisation
-thetal = 20/180 * np.pi
-thetau = 75/180 * np.pi
-ntheta = 40
+thetal = 5/180 * np.pi
+thetau = 60/180 * np.pi
+ntheta = 10
 
 # phi discretisation
 phil = 150/180 * np.pi
 phiu = 240/180 * np.pi
-nphi = 40
+nphi = 10
 
-# discretise l, r, theta, phi
+# discretise q, l, r, theta, phi
+qx = np.linspace(qxl, qxu, nqx)
+qy = np.linspace(qyl, qyu, nqy)
 l = np.linspace(ll, lu, nl)
 r = np.linspace(rl, ru, nr)
 theta = np.linspace(thetal, thetau, ntheta)
@@ -82,3 +86,32 @@ print('Number of cores: %d' % len(cores))
 print('Core sizes:')
 for i in range(len(cores)):
     print(cores[i].shape)
+
+
+# FIXME: the below is for error estimation only
+print('Computing TT-approximation error...')
+
+# form full tensor from TT approximation
+fGC = np.zeros((nqx,nqy,nl,nr,ntheta,nphi))
+for iqx in range(nqx):
+    for iqy in range(nqy):
+        for il in range(nl):
+            for ir in range(nr):
+                for it in range(ntheta):
+                    for ip in range(nphi):
+                        fGC[iqx,iqy,il,ir,it,ip] = (cores[0][:,iqx,:] @ cores[1][:,iqy,:] @ cores[2][:,il,:] @ cores[3][:,ir,:] @ cores[4][:,it,:] @ cores[5][:,ip,:])[0,0]
+
+# form Green's function tensor
+G = np.zeros((nqx,nqy,nl,nr,ntheta,nphi))
+for iqx in range(nqx):
+    for iqy in range(nqy):
+        for il in range(nl):
+            for ir in range(nr):
+                for it in range(ntheta):
+                    for ip in range(nphi):
+                        G[iqx,iqy,il,ir,it,ip] = G_cylinder(qx[iqx], qy[iqy], l[il], r[ir], theta[it], phi[ip], drho)
+
+# compute TT approximation error
+E = fGC - G
+error = np.linalg.norm(E)/np.linalg.norm(G)
+print('TT-approximation relative error: %.2e' % error)

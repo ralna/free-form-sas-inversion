@@ -10,8 +10,8 @@ drho - difference between scattering length densities
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
-from models.sphere import G_sphere
-from greedy.cross import greedy_cross
+from ffsi.models.sphere import G_sphere
+from ...greedy.cross import greedy_cross
 
 # for timing
 import time
@@ -51,4 +51,3 @@ cores = greedy_cross(dims, G_func, tol, nswp)
 t1 = time.time()
 print('Greedy cross time (s): ')
 print(t1-t0)
-

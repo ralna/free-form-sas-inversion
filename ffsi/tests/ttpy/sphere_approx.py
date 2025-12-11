@@ -10,7 +10,7 @@ drho - difference between scattering length densities
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
-from models.sphere import G_sphere
+from ffsi.models.sphere import G_sphere
 import tt
 
 # for plotting
