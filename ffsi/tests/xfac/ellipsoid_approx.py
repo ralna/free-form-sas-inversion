@@ -70,7 +70,7 @@ dims = (nqx,nqy,nrp,nre,ntheta,nphi)
 G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tol = 1e-4
+tol = 1e-6
 max_rank = 250
 print('Computing TT-representation using xfac...')
 print('Tolerance: %.2e' % tol)
@@ -107,6 +107,6 @@ for iqx in range(nqx):
                         G[iqx,iqy,irp,ire,it,ip] = G_ellipsoid(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho)
 
 # compute TT approximation error
-abs_err = tci.trueError()
+abs_err = tci.trueError(max_n_eval=int(1e15))
 rel_err = abs_err / np.linalg.norm(G)
 print('TT-approximation relative error: %.2e' % rel_err)

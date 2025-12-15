@@ -66,7 +66,7 @@ dims = (nqx,nqy,nl,nr,ntheta,nphi)
 G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tol = 1e-6
+tol = 1e-10
 max_rank = 250
 print('Computing TT-representation using xfac...')
 print('Tolerance: %.2e' % tol)

@@ -1,5 +1,5 @@
 """
-Low-rank Sphere Green's function approximation
+Low-rank Sphere Green's function approximation (LUDOX Data)
 https://www.sasview.org/docs/user/models/sphere.html
 
 Parameters:
@@ -20,21 +20,18 @@ import xfacpy
 # for timing
 import time
 
+# load real SAXS data
+data = np.loadtxt('ffsi/data/LUDOX/S49_Ludox6_1pct.dat', skiprows=1)
+q = data[:,0]
+nq = len(q)
+
 # contrast
 drho = 1
 
-# q discretisation
-ql = 1e-3
-qu = 1
-nq = 200
-
 # r discretisation
-rl = 400
-ru = 800
-nr = 500
-
-# discretise q and r
-q = np.linspace(ql, qu, nq)
+rl = 1
+ru = 10 ** 2.5
+nr = 1000
 r = np.linspace(rl, ru, nr)
 
 # function for cross-interpolation

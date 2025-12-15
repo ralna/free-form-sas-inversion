@@ -67,5 +67,4 @@ print(GTT)
 fGC = GTT.full()
 E = fGC-G
 error = np.linalg.norm(E)/np.linalg.norm(G)
-print('TT-approximation relative error: ')
-print(error)
+print('TT-approximation relative error: %.2e' % error)
