@@ -16,6 +16,9 @@ import tt
 # for plotting
 import matplotlib.pyplot as plt
 
+# for timing
+import time
+
 # load real SAXS data
 data = np.loadtxt('ffsi/data/LUDOX/S49_Ludox6_1pct.dat', skiprows=1)
 q = data[:,0]
@@ -32,7 +35,7 @@ r = np.linspace(rl, ru, nr)
 
 # FIXME: forming full G should not be required!
 # form Green's function
-# TODO: check if SASView has any vectorisation
+print("Forming full Green's function tensor...")
 G = np.zeros((nq,nr))
 for iq in range(nq):
     for ir in range(nr):
@@ -50,7 +53,14 @@ plt.savefig('sphere_LUDOX_eigs.png')
 
 # form low-rank TT-representation
 tol = 1e-6
+print('Computing TT-representation using SVD...')
+print('Tolerance: %.2e' % tol)
+
+t0 = time.time()
 GTT = tt.tensor(G,tol)
+t1 = time.time()
+print('SVD time: %.2f s' % (t1-t0))
+
 print(GTT)
 
 # form full-weight array from TT-representation

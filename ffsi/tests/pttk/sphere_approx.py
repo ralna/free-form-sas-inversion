@@ -46,8 +46,16 @@ def G_func(inds):
 # form low-rank TT-representation
 tol = 1e-6
 nswp = 1000
+print('Computing TT-representation using greedy cross...')
+print('Tolerance: %.2e' % tol)
+print('Max sweeps: %d' % nswp)
+
 t0 = time.time()
 cores = greedy_cross(dims, G_func, tol, nswp)
 t1 = time.time()
-print('Greedy cross time (s): ')
-print(t1-t0)
+print('Greedy cross time %.2f s' % (t1-t0))
+
+print('Number of cores: %d' % len(cores))
+print('Core sizes:')
+for i in range(len(cores)):
+    print(cores[i].shape)

@@ -66,19 +66,25 @@ dims = (nqx,nqy,nl,nr,ntheta,nphi)
 G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tol = 1e-4
-nswp = 1000
+tol = 1e-6
+max_rank = 250
 print('Computing TT-representation using xfac...')
-#print('Tolerance: %.2e' % tol)
-#print('Max sweeps: %d' % nswp)
+print('Tolerance: %.2e' % tol)
+
 t0 = time.time()
-tci = xfacpy.TensorCI2(G_func, dims)
+param = xfacpy.TensorCI2Param()
+param.reltol = tol
+param.bondDim = max_rank
+tci = xfacpy.TensorCI2(G_func, dims, param=param)
 while not tci.isDone():
     tci.iterate()
 t1 = time.time()
 print('xfac time: %.2f s' % (t1-t0))
 
-# print('Number of cores: %d' % len(cores))
-# print('Core sizes:')
-# for i in range(len(cores)):
-#     print(cores[i].shape)
+rel_err = tci.pivotError[-1] / tci.pivotError[0]
+print('xfac relative error: %.2e' % rel_err)
+ncores = tci.len()
+print('Number of cores: %d' % ncores)
+print('Core sizes:')
+for i in range(ncores):
+    print(tci.tt.core[i].shape)

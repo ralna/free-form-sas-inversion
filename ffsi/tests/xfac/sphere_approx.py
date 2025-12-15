@@ -31,7 +31,7 @@ nq = 200
 # r discretisation
 rl = 400
 ru = 800
-nr = 200
+nr = 500
 
 # discretise q and r
 q = np.linspace(ql, qu, nq)
@@ -43,25 +43,38 @@ G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
 
 # form low-rank TT-representation
 tol = 1e-6
-nswp = 100
+max_rank = 250
+print('Computing TT-representation using xfac...')
+print('Tolerance: %.2e' % tol)
+
 t0 = time.time()
-tci = xfacpy.TensorCI2(G_func, dims)
+param = xfacpy.TensorCI2Param()
+param.reltol = tol
+param.bondDim = max_rank
+tci = xfacpy.TensorCI2(G_func, dims, param=param)
 while not tci.isDone():
     tci.iterate()
 t1 = time.time()
-print('Greedy cross time (s): ')
-print(t1-t0)
+print('xfac time: %.2f s' % (t1-t0))
 
-# # FIXME: the below is for error estimation only
-# print('Computing TT-approximation error...')
+rel_err = tci.pivotError[-1] / tci.pivotError[0]
+print('xfac relative error: %.2e' % rel_err)
+ncores = tci.len()
+print('Number of cores: %d' % ncores)
+print('Core sizes:')
+for i in range(ncores):
+    print(tci.tt.core[i].shape)
 
-# # form Green's function tensor
-# G = np.zeros((nq,nr))
-# for iq in range(nq):
-#     for ir in range(nr):
-#         G[iq,ir] = G_sphere(q[iq], r[ir], drho)
+# FIXME: the below is for error estimation only
+print('Forming G for TT-approximation error...')
 
-# # compute TT approximation error
-# E = fGC - G
-# error = np.linalg.norm(E)/np.linalg.norm(G)
-# print('TT-approximation relative error: %.2e' % error)
+# form Green's function tensor
+G = np.zeros((nq,nr))
+for iq in range(nq):
+    for ir in range(nr):
+        G[iq,ir] = G_sphere(q[iq], r[ir], drho)
+
+# compute TT approximation error
+abs_err = tci.trueError()
+rel_err = abs_err / np.linalg.norm(G)
+print('TT-approximation relative error: %.2e' % rel_err)

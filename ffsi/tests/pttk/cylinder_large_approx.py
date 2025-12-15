@@ -73,6 +73,7 @@ nswp = 1000
 print('Computing TT-representation using greedy cross...')
 print('Tolerance: %.2e' % tol)
 print('Max sweeps: %d' % nswp)
+
 t0 = time.time()
 cores = greedy_cross(dims, G_func, tol, nswp)
 t1 = time.time()

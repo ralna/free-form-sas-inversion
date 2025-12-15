@@ -17,8 +17,8 @@ import numpy as np
 from ffsi.models.cylinder import G_cylinder
 import tt
 
-# for plotting
-import matplotlib.pyplot as plt
+# for timing
+import time
 
 # contrast
 drho = 1
@@ -64,7 +64,6 @@ phi = np.linspace(phil, phiu, nphi)
 # FIXME: forming full G should not be required!
 # form Green's function
 print("Forming full Green's function tensor...")
-# TODO: check if SASView has any vectorisation
 G = np.zeros((nqx,nqy,nl,nr,ntheta,nphi))
 for iqx in range(nqx):
     for iqy in range(nqy):
@@ -76,7 +75,14 @@ for iqx in range(nqx):
 
 # form low-rank TT-representation
 tol = 1e-4
+print('Computing TT-representation using SVD...')
+print('Tolerance: %.2e' % tol)
+
+t0 = time.time()
 GTT = tt.tensor(G,tol)
+t1 = time.time()
+print('SVD time: %.2f s' % (t1-t0))
+
 print(GTT)
 
 # form full-weight array from TT-representation
