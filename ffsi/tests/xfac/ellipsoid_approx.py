@@ -70,7 +70,7 @@ dims = (nqx,nqy,nrp,nre,ntheta,nphi)
 G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tol = 1e-6
+tol = 1e-5
 max_rank = 250
 print('Computing TT-representation using xfac...')
 print('Tolerance: %.2e' % tol)
@@ -78,6 +78,7 @@ print('Tolerance: %.2e' % tol)
 t0 = time.time()
 param = xfacpy.TensorCI2Param()
 param.reltol = tol
+param.fullPiv = True
 param.bondDim = max_rank
 tci = xfacpy.TensorCI2(G_func, dims, param=param)
 while not tci.isDone():

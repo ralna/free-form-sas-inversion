@@ -42,7 +42,7 @@ dims = (nq,nr)
 G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
 
 # form low-rank TT-representation
-tol = 1e-8
+tol = 1e-6
 max_rank = 250
 print('Computing TT-representation using xfac...')
 print('Tolerance: %.2e' % tol)
@@ -50,6 +50,7 @@ print('Tolerance: %.2e' % tol)
 t0 = time.time()
 param = xfacpy.TensorCI2Param()
 param.reltol = tol
+param.fullPiv = True
 param.bondDim = max_rank
 tci = xfacpy.TensorCI2(G_func, dims, param=param)
 while not tci.isDone():
