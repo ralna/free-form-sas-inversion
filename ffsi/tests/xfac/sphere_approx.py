@@ -23,9 +23,9 @@ import time
 # contrast
 drho = 1
 
-# q discretisation
-ql = 1e-3
-qu = 1
+# q discretisation (log)
+ql = -3
+qu = 0
 nq = 200
 
 # r discretisation
@@ -34,7 +34,7 @@ ru = 800
 nr = 500
 
 # discretise q and r
-q = np.linspace(ql, qu, nq)
+q = np.logspace(ql, qu, nq)
 r = np.linspace(rl, ru, nr)
 
 # function for cross-interpolation
