@@ -36,7 +36,7 @@ def tt_approx(G_func, dims, tol, max_rank=250, compute_true_error=False, max_err
     print('Computing TT-representation using xfac...')
     print('Tolerance: %.2e' % tol)
 
-    # form low-rank TT-representation
+    # form low-rank tensor-train approximation
     t0 = time.time()
     param = xfacpy.TensorCI2Param()
     param.reltol = tol
@@ -46,9 +46,9 @@ def tt_approx(G_func, dims, tol, max_rank=250, compute_true_error=False, max_err
     while not tci.isDone():
         tci.iterate()
     t1 = time.time()
-    print('xfac time: %.2f s' % (t1-t0))
+    print('xfac approximation time: %.2f s' % (t1-t0))
 
-    # ask xfac for the relative error
+    # print some useful statistics of the representation
     rel_err = tci.pivotError[-1] / tci.pivotError[0]
     print('xfac relative error: %.2e' % rel_err)
     ncores = tci.len()
@@ -57,8 +57,21 @@ def tt_approx(G_func, dims, tol, max_rank=250, compute_true_error=False, max_err
     for i in range(ncores):
         print(tci.tt.core[i].shape)
 
+    # compute true error if requested (slow for large tensors)
     if compute_true_error:
+
+        print('\nComputing TT-representation true error...')
+        t0 = time.time()
         abs_err = tci.trueError(max_n_eval=int(max_error_evals))
-        return tci.tt, abs_err
-    else:
-        return tci.tt
+        t1 = time.time()
+        print('xfac true error time: %.2f s' % (t1-t0))
+
+        # compute Frobenius norm(G) for relative error
+        import numpy as np
+        grid = np.meshgrid(*[np.arange(dim) for dim in dims])
+        G_norm = np.sqrt(np.sum(G_func(grid)**2))
+
+        rel_err = abs_err / G_norm
+        print('TT-approximation relative error: %.2e' % rel_err)
+
+    return tci.tt

@@ -39,10 +39,10 @@ dims = (nq,nr)
 G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
 
 # form low-rank TT-representation
-tt, abs_err = tt_approx(G_func, dims, tol=1e-10, compute_true_error=True)
+tt = tt_approx(G_func, dims, tol=1e-10, compute_true_error=True)
 
-# FIXME: the below is for error estimation only
-print('Forming G for TT-approximation error...')
+# FIXME: this is just for plotting the singular values
+print('\nForming G for singular value computation...')
 
 # form Green's function tensor
 G = np.zeros((nq,nr))
@@ -50,11 +50,6 @@ for iq in range(nq):
     for ir in range(nr):
         G[iq,ir] = G_sphere(q[iq], r[ir], drho)
 
-# compute TT approximation relative error
-rel_err = abs_err / np.linalg.norm(G)
-print('TT-approximation relative error: %.2e' % rel_err)
-
-# FIXME: this is just for plotting
 # plot singular values of G
 s = np.linalg.svd(G, compute_uv=False)
 plt.figure()
