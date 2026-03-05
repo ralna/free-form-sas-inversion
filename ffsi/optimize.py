@@ -1,11 +1,13 @@
 """
 Free-form SAS Optimization Interface
 
-Parameters:
+Mandatory Parameters:
 tt - xfac tensor train
 dims - dimensions of each Green's tensor index
 I_data - intensity data
 I_data_std - error on intensity data
+
+Optional Parameters:
 check_residual - check residual error (slow)
 check_derivative - numerically check Jacobian (slow)
 xi_true - real xi for above checks
@@ -33,7 +35,8 @@ from scipy.optimize._numdiff import approx_derivative
 from scipy.optimize import least_squares
 
 
-def tt_optimize(tt, dims, I_data, I_data_std, check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_true=None):
+def tt_optimize(tt, dims, I_data, I_data_std,
+                check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_true=None):
 
     # TODO: this is very special case for a 2-tensor
     nr = dims[1]
@@ -53,7 +56,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_residual=False, check_deriva
         b = x[1] * b0
         w = x[2:] # in [0,1]
 
-        # form Gw
+        # form Gw (the form factor)
         Gw = core1[0,:,:] @ np.tensordot(core2[:,:,0], w, axes=(1,0))
 
         # intensity from forward model
@@ -75,7 +78,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_residual=False, check_deriva
         xi = x[0] * xi0
         w = x[2:] # in [0,1]
 
-        # form Gw
+        # form Gw (the form factor)
         Gw = core1[0,:,:] @ np.tensordot(core2[:,:,0], w, axes=(1,0))
 
         # xi and b derivatives
@@ -120,7 +123,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_residual=False, check_deriva
 
     # check residual
     if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi0,b_true/b0,w_true))
+        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_true))
         eps = np.abs(res(x_true_scaled, xi0=xi0, b0=b0))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 

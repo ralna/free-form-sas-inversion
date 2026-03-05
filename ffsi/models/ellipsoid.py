@@ -20,7 +20,7 @@ def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
     # ellipsoid volume
     V = 4/3 * np.pi * rp * re ** 2
 
-    # ellipsoid structure factor
+    # ellipsoid scattering amplitude
     qc = qx * np.sin(theta) * np.cos(phi) + qy * np.sin(theta) * np.sin(phi)
     qa = np.sqrt(qx ** 2 + qy ** 2 - qc ** 2)
     qr = qa * re + qc * rp

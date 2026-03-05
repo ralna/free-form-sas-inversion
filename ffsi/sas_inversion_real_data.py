@@ -1,5 +1,5 @@
 """
-Free-form SAS Inversion Script for Real Data (SANS/SAXS/LUDOX)
+Free-form SAS Inversion Script for Real Data (SANS/SAXS)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 """

@@ -16,7 +16,7 @@ def G_sphere(q, r, drho):
     # sphere volume
     V = 4/3 * np.pi * r ** 3
 
-    # sphere structure factor
+    # sphere scattering amplitude
     qr = q * r
     F = 3 * V * drho * (np.sin(qr) - qr * np.cos(qr)) / qr ** 3
 
