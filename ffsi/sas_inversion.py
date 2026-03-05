@@ -1,5 +1,5 @@
 """
-Free-form SAS Inversion Script
+Free-form SAS Inversion Script for Simulated Data
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 """

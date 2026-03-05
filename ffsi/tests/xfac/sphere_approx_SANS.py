@@ -13,7 +13,7 @@ import numpy as np
 from ffsi.models.sphere import G_sphere
 from ffsi.tensor_train import tt_approx
 
-# load real SAXS data
+# load real SANS data
 data = np.loadtxt('ffsi/data/SANS/observation.txt')
 q = data[:,0]
 nq = len(q)

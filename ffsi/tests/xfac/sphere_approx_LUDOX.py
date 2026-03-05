@@ -21,11 +21,11 @@ nq = len(q)
 # contrast
 drho = 1
 
-# r discretisation
-rl = 1
-ru = 10 ** 2.5
+# r discretisation (log)
+rl = 0
+ru = 2.5
 nr = 1000
-r = np.linspace(rl, ru, nr)
+r = np.logspace(rl, ru, nr)
 
 # function for cross-interpolation
 dims = (nq,nr)
