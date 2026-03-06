@@ -25,7 +25,7 @@ nqx = 120
 nqy = 120
 q_side = np.logspace(-2, 0, 50) # log scale on the sides
 q_center = np.linspace(-0.0095, 0.0095, 20) # linear scale in the cente
-qx = np.hstack((-q_side, q_center, q_side))
+qx = np.hstack((-q_side[::-1], q_center, q_side))
 qy = qx.copy()
 
 # l discretisation

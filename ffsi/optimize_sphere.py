@@ -39,9 +39,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
                 check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_r_true=None):
 
     # TODO: this is very special case for sphere
-    nr = dims[1]
-    core_q = tt.core[0]
-    core_r = tt.core[1]
+    nq, nr = dims
+    core_q, core_r = tt.core
 
     # form residuals
     # TODO: this is special case as the r core is the last core
