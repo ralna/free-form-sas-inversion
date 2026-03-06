@@ -1,12 +1,12 @@
 """
-Free-form SAS Inversion Script for Simulated Data
+Free-form SAS Inversion Script for Simulated Sphere Data
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 """
 import numpy as np
 from ffsi.models.sphere import G_sphere
 from ffsi.tensor_train import tt_approx
-from ffsi.optimize import tt_optimize
+from ffsi.optimize_sphere import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -64,6 +64,7 @@ xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # compute Gw_true for simulating the intensities
+print('\nComputing Gw for simulating the intensities...')
 Gw_true = np.zeros(nq)
 for iq in range(nq):
     for ir in range(nr):

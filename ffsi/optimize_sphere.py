@@ -1,5 +1,5 @@
 """
-Free-form SAS Optimization Interface
+Free-form SAS Optimization Interface (Sphere version)
 
 Mandatory Parameters:
 tt - xfac tensor train
@@ -108,11 +108,11 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     mu_over_nv = I_data / I_data_std
     one_over_nv = 1 / I_data_std
     G_ave_over_nv = G_ave / I_data_std
-    a11 = G_ave_over_nv @ G_ave_over_nv
-    a12 = G_ave_over_nv @ one_over_nv
-    a22 = one_over_nv @ one_over_nv
-    b1 = mu_over_nv @ G_ave_over_nv
-    b2 = mu_over_nv @ one_over_nv
+    a11 = np.sum(G_ave_over_nv ** 2)
+    a12 = np.sum(G_ave_over_nv * one_over_nv)
+    a22 = np.sum(one_over_nv ** 2)
+    b1 = np.sum(mu_over_nv * G_ave_over_nv)
+    b2 = np.sum(mu_over_nv * one_over_nv)
 
     # solve xi0 and b0 using Cramer's rule
     A = a11 * a22 - a12 * a12
