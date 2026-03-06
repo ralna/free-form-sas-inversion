@@ -118,7 +118,7 @@ plt.show()
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, check_residual=True, check_derivative=True, xi_true=xi_true, b_true=b_true, w_true=w_true)
+xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, check_residual=True, check_derivative=True, xi_true=xi_true, b_true=b_true, w_r_true=w_true)
 
 # plot optimized distributions
 plt.figure()

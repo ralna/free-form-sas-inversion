@@ -12,12 +12,12 @@ check_residual - check residual error (slow)
 check_derivative - numerically check Jacobian (slow)
 xi_true - real xi for above checks
 b_true - real b for above checks
-w_true - real w for above checks
+w_r_true - real w_r for above checks
 
 Returns:
 xi_opt - optimal xi
 b_opt - optimal b
-w_opt - optimal w
+w_r_opt - optimal w_r
 
 Example usage:
 
@@ -36,12 +36,12 @@ from scipy.optimize import least_squares
 
 
 def tt_optimize(tt, dims, I_data, I_data_std,
-                check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_true=None):
+                check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_r_true=None):
 
-    # TODO: this is very special case for a 2-tensor
+    # TODO: this is very special case for sphere
     nr = dims[1]
-    core1 = tt.core[0]
-    core2 = tt.core[1]
+    core_q = tt.core[0]
+    core_r = tt.core[1]
 
     # form residuals
     # TODO: this is special case as the r core is the last core
@@ -54,10 +54,10 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         # extract variables and unscale
         xi = x[0] * xi0
         b = x[1] * b0
-        w = x[2:] # in [0,1]
+        w_r = x[2:] # in [0,1]
 
         # form Gw (the form factor)
-        Gw = core1[0,:,:] @ np.tensordot(core2[:,:,0], w, axes=(1,0))
+        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
 
         # intensity from forward model
         I_model = xi * Gw + b
@@ -76,17 +76,17 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
         # extract variables and unscale
         xi = x[0] * xi0
-        w = x[2:] # in [0,1]
+        w_r = x[2:] # in [0,1]
 
         # form Gw (the form factor)
-        Gw = core1[0,:,:] @ np.tensordot(core2[:,:,0], w, axes=(1,0))
+        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
 
         # xi and b derivatives
         dxi = (xi0 *  Gw ) / I_data_std # scaled
         db = b0 / I_data_std # scaled
 
         # form G
-        G = core1[0,:,:] @ core2[:,:,0]
+        G = core_q[0,:,:] @ core_r[:,:,0]
 
         # w derivative
         dw = ( xi * G ) / I_data_std[:,np.newaxis]
@@ -97,11 +97,11 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         return deps
 
     # w0 is uniform distribution
-    w0 = np.ones(nr) / nr
+    w_r_0 = np.ones(nr) / nr
 
-    # this averages out G
+    # this averages out G over the parameters
     # TODO: this is special case as the r core is the last core
-    G_ave = (core1[0,:] @ np.sum(core2[:,:,0], axis=1)) / nr
+    G_ave = (core_q[0,:] @ np.sum(core_r[:,:,0], axis=1)) / nr
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
@@ -123,7 +123,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # check residual
     if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_true))
+        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_r_true))
         eps = np.abs(res(x_true_scaled, xi0=xi0, b0=b0))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 
@@ -136,15 +136,15 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # call SciPy least squares with variable scaling
     print('\nCalling SciPy least_squares...')
-    x0_scaled = np.hstack((1,1,w0))
+    x0_scaled = np.hstack((1,1,w_r_0))
     result = least_squares(res, x0_scaled, jac=jac, bounds=(0,1), verbose=2, kwargs={'xi0':xi0,'b0':b0})
 
     # extract results and unscale
     xi_opt = result.x[0] * xi0
     b_opt = result.x[1] * b0
-    w_opt = result.x[2:]
+    w_r_opt = result.x[2:]
     print()
     print('xi*: %.2e' % xi_opt)
     print('b*: %.2e' % b_opt)
 
-    return xi_opt, b_opt, w_opt
+    return xi_opt, b_opt, w_r_opt
