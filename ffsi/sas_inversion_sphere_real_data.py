@@ -2,6 +2,7 @@
 Free-form SAS Inversion Script for Real Sphere Data (SANS/SAXS)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 from ffsi.models.sphere import G_sphere

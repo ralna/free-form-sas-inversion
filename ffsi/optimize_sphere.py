@@ -27,6 +27,7 @@ tt = tt_approx(G_func, dims)
 xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 # FIXME: currently this just uses SciPy for testing (no sum constraints)

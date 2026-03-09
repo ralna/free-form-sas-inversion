@@ -2,6 +2,7 @@
 Free-form SAS Inversion Script for Simulated Cylinder Data
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 from ffsi.models.cylinder import G_cylinder

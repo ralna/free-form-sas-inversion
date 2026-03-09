@@ -8,6 +8,7 @@ r - sphere radius
 drho - difference between scattering length densities
 
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 

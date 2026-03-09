@@ -9,6 +9,7 @@ r_eff - effective radius of hard sphere
 vol_frac - volume fraction of hard sphere
 
 Copyright (C) 2025 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 

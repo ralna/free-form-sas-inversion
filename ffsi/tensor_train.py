@@ -22,6 +22,7 @@ G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
 tt = tt_approx(G_func, dims)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import time
 # FIXME: compile xfac as part of this module?

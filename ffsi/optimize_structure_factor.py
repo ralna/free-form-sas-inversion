@@ -26,6 +26,7 @@ S_func = lambda iq, r_eff, vol_frac: S_hard_sphere(q[iq], r_eff, vol_frac)
 xi_opt, b_opt, vol_frac_opt, w_opt = tt_optimize_structure_factor(tt, dims, I_data, I_data_std, S_func, 180, 0.05)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
+Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 # FIXME: currently this just uses SciPy for testing (no sum constraints)
