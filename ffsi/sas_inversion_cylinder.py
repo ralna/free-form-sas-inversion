@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from ffsi.models.cylinder import G_cylinder
 from ffsi.tensor_train import tt_approx
-from ffsi.optimize_cylinder import tt_optimize
+from ffsi.optimize_cylinder_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -89,7 +89,7 @@ tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=False)
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data)
+xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, check_derivative=False)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)

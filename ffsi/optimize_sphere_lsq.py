@@ -31,9 +31,9 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 # FIXME: currently this just uses SciPy for testing (no sum constraints)
+from scipy.optimize import least_squares
 # for testing the inversion pipeline
 from scipy.optimize._numdiff import approx_derivative
-from scipy.optimize import least_squares
 
 
 def tt_optimize(tt, dims, I_data, I_data_std,
@@ -42,59 +42,6 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     # TODO: this is very special case for sphere
     nq, nr = dims
     core_q, core_r = tt.core
-
-    # form residuals
-    # TODO: this is special case as the r core is the last core
-    def res(x, *args, **kwargs):
-
-        # extract variable scalings
-        xi0 = kwargs['xi0']
-        b0 = kwargs['b0']
-
-        # extract variables and unscale
-        xi = x[0] * xi0
-        b = x[1] * b0
-        w_r = x[2:] # in [0,1]
-
-        # form Gw (the form factor)
-        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
-
-        # intensity from forward model
-        I_model = xi * Gw + b
-
-        # intensity misfit
-        eps = (I_model - I_data) / I_data_std
-
-        return eps
-
-    # form Jacobian
-    # TODO: this is special case as the r core is the last core
-    def jac(x, *args, **kwargs):
-
-        # extract variable scalings
-        xi0 = kwargs['xi0']
-
-        # extract variables and unscale
-        xi = x[0] * xi0
-        w_r = x[2:] # in [0,1]
-
-        # form Gw (the form factor)
-        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
-
-        # xi and b derivatives
-        dxi = (xi0 *  Gw ) / I_data_std # scaled
-        db = b0 / I_data_std # scaled
-
-        # form G
-        G = core_q[0,:,:] @ core_r[:,:,0]
-
-        # w derivative
-        dw = ( xi * G ) / I_data_std[:,np.newaxis]
-
-        # intensity misfit derivative
-        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw))
-
-        return deps
 
     # w0 is uniform distribution
     w_r_0 = np.ones(nr) / nr
@@ -121,23 +68,69 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print('xi0: %.2e' % xi0)
     print('b0: %.2e' % b0)
 
+    # form residuals
+    # TODO: this is special case as the r core is the last core
+    def res(x):
+
+        # extract variables and unscale
+        xi = x[0] * xi0
+        b = x[1] * b0
+        w_r = x[2:] # in [0,1]
+
+        # form Gw (the form factor)
+        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
+
+        # intensity from forward model
+        I_model = xi * Gw + b
+
+        # intensity misfit
+        eps = (I_model - I_data) / I_data_std
+
+        return eps
+
+    # form Jacobian
+    # TODO: this is special case as the r core is the last core
+    def jac(x):
+
+        # extract variables and unscale
+        xi = x[0] * xi0
+        w_r = x[2:] # in [0,1]
+
+        # form Gw (the form factor)
+        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
+
+        # xi and b derivatives
+        dxi = (xi0 *  Gw ) / I_data_std # scaled
+        db = b0 / I_data_std # scaled
+
+        # form G
+        G = core_q[0,:,:] @ core_r[:,:,0]
+
+        # w derivative
+        dw = ( xi * G ) / I_data_std[:,np.newaxis]
+
+        # intensity misfit derivative
+        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw))
+
+        return deps
+
     # check residual
     if check_residual:
         x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_r_true))
-        eps = np.abs(res(x_true_scaled, xi0=xi0, b0=b0))
+        eps = np.abs(res(x_true_scaled))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 
     # check derivative
     if check_derivative:
-        jac1 = jac(x_true_scaled, xi0=xi0, b0=b0)
-        jac2 = approx_derivative(res, x_true_scaled, kwargs={'xi0':xi0,'b0':b0}) # numdiff derivative
+        jac1 = jac(x_true_scaled)
+        jac2 = approx_derivative(res, x_true_scaled) # numdiff derivative
         ej = np.abs(jac1-jac2)
         print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
 
     # call SciPy least squares with variable scaling
     print('\nCalling SciPy least_squares...')
     x0_scaled = np.hstack((1,1,w_r_0))
-    result = least_squares(res, x0_scaled, jac=jac, bounds=(0,1), verbose=2, kwargs={'xi0':xi0,'b0':b0})
+    result = least_squares(res, x0_scaled, jac=jac, bounds=(0,1), verbose=2)
 
     # extract results and unscale
     xi_opt = result.x[0] * xi0

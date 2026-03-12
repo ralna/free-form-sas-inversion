@@ -26,25 +26,53 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-# FIXME: currently this just uses SciPy for testing (no sum constraints)
+from galahad import snls
 # for testing the inversion pipeline
-from scipy.optimize import least_squares
+from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(tt, dims, I_data, I_data_std):
+def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
 
     # TODO: this is very special case for cylinder
     nqx, nqy, nl, nr, ntheta, nphi = dims
     core_qx, core_qy, core_l, core_r, core_theta, core_phi = tt.core
 
+    # w0 are uniform distributions
+    w_l_0 = np.ones(nl) / nl
+    w_r_0 = np.ones(nr) / nr
+    w_theta_0 = np.ones(ntheta) / ntheta
+    w_phi_0 = np.ones(nphi) / nphi
+
+    # this averages out G over the parameters
+    # TODO: this is special case
+    G_ave = (np.tensordot(core_qx[0,:,:], core_qy, axes=(1,0)) \
+             @ np.sum(core_l, axis=1) \
+             @ np.sum(core_r, axis=1) \
+             @ np.sum(core_theta, axis=1) \
+             @ np.sum(core_phi[:,:,0], axis=1)) / (nl*nr*ntheta*nphi)
+
+    # and xi0 and b0 can be determined from
+    # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
+    mu_over_nv = I_data / I_data_std
+    one_over_nv = 1 / I_data_std
+    G_ave_over_nv = G_ave / I_data_std
+    a11 = np.sum(G_ave_over_nv ** 2)
+    a12 = np.sum(G_ave_over_nv * one_over_nv)
+    a22 = np.sum(one_over_nv ** 2)
+    b1 = np.sum(mu_over_nv * G_ave_over_nv)
+    b2 = np.sum(mu_over_nv * one_over_nv)
+
+    # solve xi0 and b0 using Cramer's rule
+    A = a11 * a22 - a12 * a12
+    xi0 = (b1 * a22 - b2 * a12) / A
+    b0 = (b2 * a11 - b1 * a12) / A
+    print('xi0: %.2e' % xi0)
+    print('b0: %.2e' % b0)
+
     # form residuals
     # TODO: this is special case
-    def res(x, *args, **kwargs):
-
-        # extract variable scalings
-        xi0 = kwargs['xi0']
-        b0 = kwargs['b0']
+    def eval_r(x):
 
         # extract variables and unscale
         xi = x[0] * xi0
@@ -71,10 +99,7 @@ def tt_optimize(tt, dims, I_data, I_data_std):
 
     # form Jacobian
     # TODO: this is special case
-    def jac(x, *args, **kwargs):
-
-        # extract variable scalings
-        xi0 = kwargs['xi0']
+    def eval_Jr(x):
 
         # extract variables and unscale
         xi = x[0] * xi0
@@ -126,54 +151,74 @@ def tt_optimize(tt, dims, I_data, I_data_std):
         # intensity misfit derivative
         deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dwl,dwr,dwt,dwp))
 
-        return deps
+        return deps.flatten()
 
-    # w0 are uniform distributions
-    w_l_0 = np.ones(nl) / nl
-    w_r_0 = np.ones(nr) / nr
-    w_theta_0 = np.ones(ntheta) / ntheta
-    w_phi_0 = np.ones(nphi) / nphi
+    # check derivative
+    if check_derivative:
+        x0_scaled = np.hstack((1,1,w_l_0,w_r_0,w_theta_0,w_phi_0))
+        jac1 = eval_Jr(x0_scaled)
+        jac2 = approx_derivative(eval_r, x0_scaled) # numdiff derivative
+        ej = np.abs(jac1-jac2.flatten())
+        print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
 
-    # this averages out G over the parameters
-    # TODO: this is special case
-    G_ave = (np.tensordot(core_qx[0,:,:], core_qy, axes=(1,0)) \
-             @ np.sum(core_l, axis=1) \
-             @ np.sum(core_r, axis=1) \
-             @ np.sum(core_theta, axis=1) \
-             @ np.sum(core_phi[:,:,0], axis=1)) / (nl*nr*ntheta*nphi)
+    # set GALAHAD SNLS options
+    options = snls.initialize()
+    options['maxit'] = 1000
+    options['print_level'] = 2
+    options['jacobian_available'] = 2
+    #options['slls_options']['print_level'] = 1
+    options['slls_options']['sbls_options']['symmetric_linear_solver'] = 'sytr '
+    options['slls_options']['sbls_options']['definite_linear_solver'] = 'potr '
+    options['sllsb_options']['fdc_options']['symmetric_linear_solver'] = 'sytr '
+    options['sllsb_options']['cro_options']['symmetric_linear_solver'] = 'sytr '
+    # stopping criteria
+    options['stop_pg_relative'] = 1e-15
+    options['stop_pg_absolute'] = 1e-7
 
-    # and xi0 and b0 can be determined from
-    # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
-    mu_over_nv = I_data / I_data_std
-    one_over_nv = 1 / I_data_std
-    G_ave_over_nv = G_ave / I_data_std
-    a11 = np.sum(G_ave_over_nv ** 2)
-    a12 = np.sum(G_ave_over_nv * one_over_nv)
-    a22 = np.sum(one_over_nv ** 2)
-    b1 = np.sum(mu_over_nv * G_ave_over_nv)
-    b2 = np.sum(mu_over_nv * one_over_nv)
-
-    # solve xi0 and b0 using Cramer's rule
-    A = a11 * a22 - a12 * a12
-    xi0 = (b1 * a22 - b2 * a12) / A
-    b0 = (b2 * a11 - b1 * a12) / A
-    print('xi0: %.2e' % xi0)
-    print('b0: %.2e' % b0)
-
-    # call SciPy least squares with variable scaling
-    print('\nCalling SciPy least_squares...')
+    # form and scale initial optimization variable
     x0_scaled = np.hstack((1,1,w_l_0,w_r_0,w_theta_0,w_phi_0))
-    result = least_squares(res, x0_scaled, jac=jac, bounds=(0,1), verbose=2, kwargs={'xi0':xi0,'b0':b0})
+
+    # set GALAHAD SNLS Jacobian info
+    # FIXME: use dense interface once it is fixed
+    Jr_type = 'coordinate'
+    Jr_ne = nqx*nqy*(2+nl+nr+ntheta+nphi)
+    Jr_row = np.tile(np.arange(nqx*nqy),(2+nl+nr+ntheta+nphi,1)).flatten('F')
+    Jr_col = np.tile(np.arange(2+nl+nr+ntheta+nphi),nqx*nqy)
+    Jr_ptr_ne = 0
+    Jr_ptr = None
+
+    # set GALAHAD SNLS cohorts
+    n = 2 + nl + nr + ntheta + nphi
+    m_r = nqx * nqy
+    m_c = 4
+    cohort = np.hstack(( np.array([-1,-1]), np.zeros(nl, dtype=int), np.ones(nr, dtype=int),
+                        2*np.ones(ntheta, dtype=int), 3*np.ones(nphi, dtype=int) ))
+
+    # initialise GALAHAD SNLS
+    snls.load(n, m_r, m_c, Jr_type, Jr_ne, Jr_row, Jr_col, Jr_ptr_ne, Jr_ptr, cohort, options)
+
+    # call GALAHAD SNLS with variable scaling
+    print('\nCalling GALAHAD SNLS...')
+    x, y, z, r, g, x_stat = snls.solve(n, m_r, m_c, x0_scaled, eval_r, Jr_ne, eval_Jr)
+
+    # get information
+    info = snls.information()
+    #print("inform:", inform)
+    print(" f: %.4f" % info['obj'])
+    print('** snls exit status:', info['status'])
 
     # extract results and unscale
-    xi_opt = result.x[0] * xi0
-    b_opt = result.x[1] * b0
-    w_l_opt = result.x[2:2+nl] # in [0,1]
-    w_r_opt = result.x[2+nl:2+nl+nr] # in [0,1]
-    w_theta_opt = result.x[2+nl+nr:2+nl+nr+ntheta] # in [0,1]
-    w_phi_opt = result.x[2+nl+nr+ntheta:] # in [0,1]
+    xi_opt = x[0] * xi0
+    b_opt = x[1] * b0
+    w_l_opt = x[2:2+nl] # in [0,1]
+    w_r_opt = x[2+nl:2+nl+nr] # in [0,1]
+    w_theta_opt = x[2+nl+nr:2+nl+nr+ntheta] # in [0,1]
+    w_phi_opt = x[2+nl+nr+ntheta:] # in [0,1]
     print()
     print('xi*: %.2e' % xi_opt)
     print('b*: %.2e' % b_opt)
+
+    # finalise GALAHAD SNLS
+    snls.terminate()
 
     return xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt
