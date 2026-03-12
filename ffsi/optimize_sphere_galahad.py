@@ -130,8 +130,11 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     options = snls.initialize()
     options['print_level'] = 2
     options['jacobian_available'] = 2
+    #options['slls_options']['print_level'] = 1
     options['slls_options']['sbls_options']['symmetric_linear_solver'] = 'sytr '
     options['slls_options']['sbls_options']['definite_linear_solver'] = 'potr '
+    options['sllsb_options']['fdc_options']['symmetric_linear_solver'] = 'sytr '
+    options['sllsb_options']['cro_options']['symmetric_linear_solver'] = 'sytr '
 
     # form and scale initial optimization variable
     x0_scaled = np.hstack((1,1,w_r_0))
@@ -151,7 +154,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     m_c = 1
     cohort = np.hstack((np.array([-1,-1]),np.zeros(nr, dtype=int)))
 
-    # load GALAHAD SNLS cohorts
+    # initialise GALAHAD SNLS
     snls.load(n, m_r, m_c, Jr_type, Jr_ne, Jr_row, Jr_col, Jr_ptr_ne, Jr_ptr, cohort, options)
 
     # call GALAHAD SNLS with variable scaling
@@ -171,5 +174,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print()
     print('xi*: %.2e' % xi_opt)
     print('b*: %.2e' % b_opt)
+
+    # finalise GALAHAD SNLS
+    snls.terminate()
 
     return xi_opt, b_opt, w_r_opt
