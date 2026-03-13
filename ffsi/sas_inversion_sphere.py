@@ -46,11 +46,11 @@ w_true /= w_true.sum()  # normalize
 
 # plot ground truth radii distributions
 plt.figure()
-plt.plot(r, w_true)
+plt.plot(r, w_true * 100) # x100 to percent
 plt.grid()
 plt.title("Ground truth distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
-plt.ylabel(r"Weights $w$")
+plt.ylabel(r"Weights $w$ (%)")
 plt.show()
 
 # ground truth of scale and background
@@ -123,9 +123,9 @@ xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, check_residual=
 
 # plot optimized distributions
 plt.figure()
-plt.plot(r, w_opt)
+plt.plot(r, w_opt * 100) # x100 to percent
 plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
-plt.ylabel(r"Weights $w$")
+plt.ylabel(r"Weights $w$ (%)")
 plt.show()

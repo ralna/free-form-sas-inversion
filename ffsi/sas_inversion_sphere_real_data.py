@@ -103,9 +103,12 @@ xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std)
 
 # plot optimized distributions
 plt.figure()
-plt.plot(r, w_opt)
+v = r ** 3 # volume
+w_hat = w_opt * v / (w_opt * v).sum() * 100  # x100 to percent
+cmap = plt.get_cmap('turbo_r') # colormap
+plt.plot(r, w_hat, c=cmap(0.0))
 plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
-plt.ylabel(r"Weights $w$")
+plt.ylabel(r"Volume weight $\hat{w}$ (%)")
 plt.show()

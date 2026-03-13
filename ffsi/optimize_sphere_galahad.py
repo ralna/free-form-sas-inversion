@@ -137,7 +137,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     options['sllsb_options']['cro_options']['symmetric_linear_solver'] = 'sytr '
     # stopping criteria
     options['stop_pg_relative'] = 1e-15
-    options['stop_pg_absolute'] = 1e-7
+    options['stop_pg_absolute'] = 1e-6
 
     # form and scale initial optimization variable
     x0_scaled = np.hstack((1,1,w_r_0))
