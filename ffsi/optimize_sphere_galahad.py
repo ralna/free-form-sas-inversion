@@ -143,11 +143,10 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     x0_scaled = np.hstack((1,1,w_r_0))
 
     # set GALAHAD SNLS Jacobian info
-    # FIXME: use dense interface once it is fixed
-    Jr_type = 'coordinate'
+    Jr_type = 'dense'
     Jr_ne = nq*(2+nr)
-    Jr_row = np.tile(np.arange(nq),(2+nr,1)).flatten('F')
-    Jr_col = np.tile(np.arange(2+nr),nq)
+    Jr_row = None
+    Jr_col = None
     Jr_ptr_ne = 0
     Jr_ptr = None
 
