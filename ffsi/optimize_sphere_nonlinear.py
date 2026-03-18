@@ -157,7 +157,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         w_r = x[2:] # in [0,1]
 
         # simplex constraint
-        s = np.sum(w_r)
+        s = np.sum(w_r) - 1
 
         return s
 
@@ -222,12 +222,16 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # setup simplex equality constraint
     # TODO: this is special case
-    objcon = opt.NonlinearConstraint(con, 1, 1, jac=congrad, hess=conhessprod)
+    objcon = opt.NonlinearConstraint(con, 0, 0, jac=congrad, hess=conhessprod)
 
     # call SciPy minimize with variable scaling
     print('\nCalling SciPy minimize...')
     x0_scaled = np.hstack((1,1,w_r_0))
-    result = opt.minimize(objfun, x0_scaled, jac=objgrad, bounds=opt.Bounds(0,1), constraints=objcon, method='trust-constr', options={'verbose':3})
+    lb = np.zeros(2+nr)
+    ub = np.ones(2+nr)
+    lb[:2] = -np.inf # free xi and b
+    ub[:2] = np.inf
+    result = opt.minimize(objfun, x0_scaled, jac=objgrad, bounds=opt.Bounds(lb,ub), constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
 
     # extract results and unscale
     xi_opt = result.x[0] * xi0
