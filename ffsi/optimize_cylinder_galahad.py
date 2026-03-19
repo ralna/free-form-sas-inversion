@@ -140,7 +140,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
         Gw_dwp = Gq @ Gw_l @ Gw_r @ Gw_theta @ core_phi[:,:,0]
         dwp = ( xi * Gw_dwp ) / I_data_std[:,:,np.newaxis]
 
-        # flatten arrays
+        # flatten arrays in q
         dxi = dxi.flatten()
         db = db.flatten()
         dwl = dwl.reshape(-1, dwl.shape[-1])
@@ -159,7 +159,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
         jac1 = eval_Jr(x0_scaled)
         jac2 = approx_derivative(eval_r, x0_scaled) # numdiff derivative
         ej = np.abs(jac1-jac2.flatten())
-        print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
+        print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e\n' % (np.min(ej),np.mean(ej),np.max(ej)))
 
     # set GALAHAD SNLS options
     options = snls.initialize()
