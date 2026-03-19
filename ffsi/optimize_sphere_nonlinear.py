@@ -231,7 +231,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     ub = np.ones(2+nr)
     lb[:2] = -np.inf # free xi and b
     ub[:2] = np.inf
-    result = opt.minimize(objfun, x0_scaled, jac=objgrad, bounds=opt.Bounds(lb,ub), constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
+    result = opt.minimize(objfun, x0_scaled, jac=objgrad, hess=objhess, bounds=opt.Bounds(lb,ub), constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
 
     # extract results and unscale
     xi_opt = result.x[0] * xi0

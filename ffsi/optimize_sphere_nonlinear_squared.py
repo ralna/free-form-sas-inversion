@@ -206,7 +206,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # check constraint Hessian
     if check_derivative:
-        hess1 = conhessprod(x_true_scaled, np.ones(nr))
+        hess1 = conhessprod(x_true_scaled,1)
         hess2 = approx_derivative(congrad, x_true_scaled) # numdiff derivative
         eh = np.abs(hess1-hess2)
         print('\nConstrain Hessian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eh),np.mean(eh),np.max(eh)))
@@ -242,7 +242,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     # call SciPy minimize with variable scaling
     print('\nCalling SciPy minimize...')
     s0_scaled = np.hstack((1,1,np.sqrt(w_r_0)))
-    result = opt.minimize(objfun, s0_scaled, jac=objgrad, constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
+    result = opt.minimize(objfun, s0_scaled, jac=objgrad, hess=objhess, constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
 
     # extract results and unscale
     xi_opt = result.x[0] * xi0
