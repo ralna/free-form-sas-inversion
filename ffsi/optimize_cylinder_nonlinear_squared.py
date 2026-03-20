@@ -32,7 +32,9 @@ from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
+def tt_optimize(tt, dims, I_data, I_data_std,
+                check_residual=False, check_derivative=False, xi_true=None, b_true=None,
+                w_l_true=None, w_r_true=None, w_theta_true=None, w_phi_true=None):
 
     # TODO: this is very special case for cylinder
     nqx, nqy, nl, nr, ntheta, nphi = dims
@@ -321,11 +323,16 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
 
         return ht2
 
+     # check residual
+    if check_residual:
+        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_l_true, w_r_true, w_theta_true, w_phi_true))
+        eps = np.abs(res(x_true_scaled))
+        print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
+
     # check derivative
     if check_derivative:
-        s0_scaled = np.hstack((xi0/xi0,b0/b0,np.sqrt(w_l_0),np.sqrt(w_r_0),np.sqrt(w_theta_0),np.sqrt(w_phi_0)))
-        jac1 = jac(s0_scaled)
-        jac2 = approx_derivative(res, s0_scaled) # numdiff derivative
+        jac1 = jac(x_true_scaled)
+        jac2 = approx_derivative(res, x_true_scaled) # numdiff derivative
         ej = np.abs(jac1-jac2)
         print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
 
@@ -375,15 +382,15 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
 
     # check constraint gradient
     if check_derivative:
-        grad1 = congrad(s0_scaled)
-        grad2 = approx_derivative(con, s0_scaled) # numdiff derivative
+        grad1 = congrad(x_true_scaled)
+        grad2 = approx_derivative(con, x_true_scaled) # numdiff derivative
         eg = np.abs(grad1-grad2)
         print('\nConstraint gradient difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eg),np.mean(eg),np.max(eg)))
 
     # check constraint Hessian
     #if check_derivative:
-    #    hess1 = conhessprod(s0_scaled, [1,1,1,1])
-    #    hess2 = approx_derivative(congrad, s0_scaled) # numdiff derivative
+    #    hess1 = conhessprod(x_true_scaled, [1,1,1,1])
+    #    hess2 = approx_derivative(congrad, x_true_scaled) # numdiff derivative
     #    eh = np.abs(hess1-hess2)
     #    print('\nConstrain Hessian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eh),np.mean(eh),np.max(eh)))
 
@@ -407,8 +414,8 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
     # check Hessian
     if check_derivative:
         print('\nChecking Hessian...')
-        hess1 = objhess(s0_scaled)
-        hess2 = approx_derivative(objgrad, s0_scaled) # numdiff derivative
+        hess1 = objhess(x_true_scaled)
+        hess2 = approx_derivative(objgrad, x_true_scaled) # numdiff derivative
         eh = np.abs(hess1-hess2)
         print('Hessian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eh),np.mean(eh),np.max(eh)))
 

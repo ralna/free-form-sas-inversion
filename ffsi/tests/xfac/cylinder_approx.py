@@ -45,13 +45,13 @@ ru = 90
 nr = 10
 
 # theta discretisation
-thetal = 5/180 * np.pi
-thetau = 60/180 * np.pi
+thetal = 5
+thetau = 60
 ntheta = 10
 
 # phi discretisation
-phil = 150/180 * np.pi
-phiu = 240/180 * np.pi
+phil = 150
+phiu = 240
 nphi = 10
 
 # discretise q, l, r, theta, phi
@@ -61,6 +61,10 @@ l = np.linspace(ll, lu, nl)
 r = np.linspace(rl, ru, nr)
 theta = np.linspace(thetal, thetau, ntheta)
 phi = np.linspace(phil, phiu, nphi)
+
+# convert degrees to radians
+theta = np.deg2rad(theta)
+phi = np.deg2rad(phi)
 
 # function for cross-approximation
 dims = (nqx,nqy,nl,nr,ntheta,nphi)

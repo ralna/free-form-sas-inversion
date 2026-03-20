@@ -32,7 +32,9 @@ from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
+def tt_optimize(tt, dims, I_data, I_data_std,
+                check_residual=False, check_derivative=False, xi_true=None, b_true=None,
+                w_l_true=None, w_r_true=None, w_theta_true=None, w_phi_true=None):
 
     # TODO: this is very special case for cylinder
     nqx, nqy, nl, nr, ntheta, nphi = dims
@@ -153,11 +155,16 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
 
         return deps.flatten()
 
+    # check residual
+    if check_residual:
+        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_l_true, w_r_true, w_theta_true, w_phi_true))
+        eps = np.abs(eval_r(x_true_scaled))
+        print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
+
     # check derivative
     if check_derivative:
-        x0_scaled = np.hstack((1,1,w_l_0,w_r_0,w_theta_0,w_phi_0))
-        jac1 = eval_Jr(x0_scaled)
-        jac2 = approx_derivative(eval_r, x0_scaled) # numdiff derivative
+        jac1 = eval_Jr(x_true_scaled)
+        jac2 = approx_derivative(eval_r, x_true_scaled) # numdiff derivative
         ej = np.abs(jac1-jac2.flatten())
         print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e\n' % (np.min(ej),np.mean(ej),np.max(ej)))
 
