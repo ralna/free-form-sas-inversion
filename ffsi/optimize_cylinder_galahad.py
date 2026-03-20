@@ -216,6 +216,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, check_derivative=False):
     print()
     print('xi*: %.2e' % xi_opt)
     print('b*: %.2e' % b_opt)
+    print('r*: %.15e' % np.linalg.norm(eval_r(x)))
 
     # finalise GALAHAD SNLS
     snls.terminate()

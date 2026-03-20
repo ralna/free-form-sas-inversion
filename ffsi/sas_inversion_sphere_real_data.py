@@ -7,7 +7,8 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from ffsi.models.sphere import G_sphere
 from ffsi.tensor_train import tt_approx
-from ffsi.optimize_sphere_galahad import tt_optimize
+#from ffsi.optimize_sphere_galahad import tt_optimize
+from ffsi.optimize_sphere_nonlinear_squared import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt

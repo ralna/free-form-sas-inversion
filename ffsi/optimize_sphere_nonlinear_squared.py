@@ -251,5 +251,6 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print()
     print('xi*: %.2e' % xi_opt)
     print('b*: %.2e' % b_opt)
+    print('r*: %.15e' % np.sqrt(2*objfun(result.x)))
 
     return xi_opt, b_opt, w_r_opt
