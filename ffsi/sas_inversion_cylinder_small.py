@@ -20,35 +20,39 @@ print("Step 0: Discretise parameters\n")
 # contrast
 drho = 1
 
-# qx, qy discretisation
-nqx = 120
-nqy = 120
-q_side = np.logspace(-2, 0, 50) # log scale on the sides
-q_center = np.linspace(-0.0095, 0.0095, 20) # linear scale in the cente
-qx = np.hstack((-q_side[::-1], q_center, q_side))
-qy = qx.copy()
+# qx discretisation
+qxl = -0.75
+qxu = 0.75
+nqx = 60
+
+# qy discretisation
+qyl = -0.75
+qyu = 0.75
+nqy = 60
 
 # l discretisation
 ll = 200
 lu = 600
-nl = 40
+nl = 18
 
 # r discretisation
 rl = 50
 ru = 90
-nr = 40
+nr = 17
 
-# theta discretisation (degrees)
-thetal = 20
-thetau = 75
-ntheta = 40
+# theta discretisation
+thetal = 5
+thetau = 60
+ntheta = 16
 
-# phi discretisation (degrees)
+# phi discretisation
 phil = 150
 phiu = 240
-nphi = 40
+nphi = 15
 
-# discretise l, r, theta, phi
+# discretise q, l, r, theta, phi
+qx = np.linspace(qxl, qxu, nqx)
+qy = np.linspace(qyl, qyu, nqy)
 l = np.linspace(ll, lu, nl)
 r = np.linspace(rl, ru, nr)
 theta = np.linspace(thetal, thetau, ntheta)
@@ -69,10 +73,10 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 print("\nStep 1: Load pre-generated ground truth\n")
 
 # load true distributions from paper
-w_l_true = np.loadtxt('ffsi/data/cylinder_large_scale/w_l_true.txt')
-w_r_true = np.loadtxt('ffsi/data/cylinder_large_scale/w_r_true.txt')
-w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large_scale/w_theta_true.txt'))
-w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large_scale/w_phi_true.txt'))
+w_l_true = np.loadtxt('ffsi/data/cylinder_small/w_l_true.txt')
+w_r_true = np.loadtxt('ffsi/data/cylinder_small/w_r_true.txt')
+w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_small/w_theta_true.txt'))
+w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_small/w_phi_true.txt'))
 
 # ground truth of scale and background
 scale_true = 0.15
@@ -108,7 +112,7 @@ ax[1,1].grid()
 plt.show()
 
 # load true intensity data from paper
-I_data = np.loadtxt('ffsi/data/cylinder_large_scale/intensities.txt')
+I_data = np.loadtxt('ffsi/data/cylinder_small/intensities.txt')
 
 # plot intensities
 plt.figure()
@@ -129,11 +133,11 @@ dims = (nqx,nqy,nl,nr,ntheta,nphi)
 G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=False)
+tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=True)
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, check_residual=True, check_derivative=True, xi_true=xi_true, b_true=b_true,
+xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, check_residual=True, check_derivative=False, xi_true=xi_true, b_true=b_true,
                                                                       w_l_true=w_l_true, w_r_true=w_r_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
 
 # plot optimized distributions

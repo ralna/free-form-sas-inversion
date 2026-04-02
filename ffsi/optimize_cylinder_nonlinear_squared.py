@@ -40,9 +40,6 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     nqx, nqy, nl, nr, ntheta, nphi = dims
     core_qx, core_qy, core_l, core_r, core_theta, core_phi = tt.core
 
-    # indices
-
-
     # w0 are uniform distributions
     w_l_0 = np.ones(nl) / nl
     w_r_0 = np.ones(nr) / nr
@@ -75,13 +72,17 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print('xi0: %.2e' % xi0)
     print('b0: %.2e' % b0)
 
+    # determine xi0 and b0 scaling
+    xi_sc = 10 ** np.floor(np.log10(np.abs(xi0)))
+    b_sc = 10 ** np.floor(np.log10(np.abs(b0)))
+
     # form residuals
     # TODO: this is special case
     def res(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
-        b = x[1] * b0
+        xi = x[0] * xi_sc
+        b = x[1] * b_sc
         s_l = x[2:2+nl] # in [0,1]
         s_r = x[2+nl:2+nl+nr] # in [0,1]
         s_theta = x[2+nl+nr:2+nl+nr+ntheta] # in [0,1]
@@ -107,7 +108,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     def jac(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         s_l = x[2:2+nl] # in [0,1]
         s_r = x[2+nl:2+nl+nr] # in [0,1]
         s_theta = x[2+nl+nr:2+nl+nr+ntheta] # in [0,1]
@@ -130,8 +131,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         Gs2 = Gq @ Gs2_l @ Gs2_r @ Gs2_theta @ Gs2_phi
 
         # xi and b derivatives
-        dxi = (xi0 *  Gs2 ) / I_data_std # scaled
-        db = b0 / I_data_std # scaled
+        dxi = (xi_sc *  Gs2 ) / I_data_std # scaled
+        db = b_sc / I_data_std # scaled
 
         # s_l derivative
         Gs_dsl = np.tensordot(Gq, core_2sl, axes=(-1,0)) @ Gs2_r @ Gs2_theta @ Gs2_phi
@@ -169,7 +170,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     def hess_term2(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         s_l = x[2:2+nl] # in [0,1]
         s_r = x[2+nl:2+nl+nr] # in [0,1]
         s_theta = x[2+nl+nr:2+nl+nr+ntheta] # in [0,1]
@@ -193,18 +194,18 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
         # form the four nonzero xi blocks
         Gsl_xi = np.tensordot(Gq, core_2sl, axes=(-1,0)) @ Gs2_r @ Gs2_theta @ Gs2_phi
-        dsl_xi = (xi0 * Gsl_xi ) / I_data_std[:,:,np.newaxis]
+        dsl_xi = (xi_sc * Gsl_xi ) / I_data_std[:,:,np.newaxis]
 
         # TODO: cleaner nested tensor product syntax
         Gsr_xi = np.tensordot(Gq, np.tensordot(Gs2_l, core_2sr, axes=(-1,0)), axes=(-1,0)) @ Gs2_theta @ Gs2_phi
-        dsr_xi = (xi0 * Gsr_xi ) / I_data_std[:,:,np.newaxis]
+        dsr_xi = (xi_sc * Gsr_xi ) / I_data_std[:,:,np.newaxis]
 
         # TODO: much cleaner nested tensor product syntax
         Gst_xi = np.tensordot(Gq, np.tensordot(Gs2_l, np.tensordot(Gs2_r, core_2st, axes=(-1,0)), axes=(-1,0)), axes=(-1,0)) @ Gs2_phi
-        dst_xi = (xi0 * Gst_xi ) / I_data_std[:,:,np.newaxis]
+        dst_xi = (xi_sc * Gst_xi ) / I_data_std[:,:,np.newaxis]
 
         Gsp_xi = Gq @ Gs2_l @ Gs2_r @ Gs2_theta @ core_2sp
-        dsp_xi = (xi0 * Gsp_xi ) / I_data_std[:,:,np.newaxis]
+        dsp_xi = (xi_sc * Gsp_xi ) / I_data_std[:,:,np.newaxis]
 
         # flatten arrays in q
         dsl_xi = dsl_xi.reshape(-1, dsl_xi.shape[-1])
@@ -325,14 +326,14 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
      # check residual
     if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_l_true, w_r_true, w_theta_true, w_phi_true))
-        eps = np.abs(res(x_true_scaled))
+        s_true_scaled = np.hstack((xi_true/xi_sc, b_true/b_sc, np.sqrt(w_l_true), np.sqrt(w_r_true), np.sqrt(w_theta_true), np.sqrt(w_phi_true)))
+        eps = np.abs(res(s_true_scaled))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 
     # check derivative
     if check_derivative:
-        jac1 = jac(x_true_scaled)
-        jac2 = approx_derivative(res, x_true_scaled) # numdiff derivative
+        jac1 = jac(s_true_scaled)
+        jac2 = approx_derivative(res, s_true_scaled) # numdiff derivative
         ej = np.abs(jac1-jac2)
         print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
 
@@ -382,8 +383,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # check constraint gradient
     if check_derivative:
-        grad1 = congrad(x_true_scaled)
-        grad2 = approx_derivative(con, x_true_scaled) # numdiff derivative
+        grad1 = congrad(s_true_scaled)
+        grad2 = approx_derivative(con, s_true_scaled) # numdiff derivative
         eg = np.abs(grad1-grad2)
         print('\nConstraint gradient difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eg),np.mean(eg),np.max(eg)))
 
@@ -414,8 +415,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     # check Hessian
     if check_derivative:
         print('\nChecking Hessian...')
-        hess1 = objhess(x_true_scaled)
-        hess2 = approx_derivative(objgrad, x_true_scaled) # numdiff derivative
+        hess1 = objhess(s_true_scaled)
+        hess2 = approx_derivative(objgrad, s_true_scaled) # numdiff derivative
         eh = np.abs(hess1-hess2)
         print('Hessian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(eh),np.mean(eh),np.max(eh)))
 
@@ -425,12 +426,12 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # call SciPy minimize with variable scaling
     print('\nCalling SciPy minimize...')
-    s0_scaled = np.hstack((xi0/xi0,b0/b0,np.sqrt(w_l_0),np.sqrt(w_r_0),np.sqrt(w_theta_0),np.sqrt(w_phi_0)))
+    s0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,np.sqrt(w_l_0),np.sqrt(w_r_0),np.sqrt(w_theta_0),np.sqrt(w_phi_0)))
     result = opt.minimize(objfun, s0_scaled, jac=objgrad, hess=objhess, constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':1000})
 
     # extract results and unscale
-    xi_opt = result.x[0] * xi0
-    b_opt = result.x[1] * b0
+    xi_opt = result.x[0] * xi_sc
+    b_opt = result.x[1] * b_sc
     w_l_opt = result.x[2:2+nl] ** 2
     w_r_opt = result.x[2+nl:2+nl+nr] ** 2
     w_theta_opt = result.x[2+nl+nr:2+nl+nr+ntheta] ** 2

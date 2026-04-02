@@ -67,13 +67,17 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print('xi0: %.2e' % xi0)
     print('b0: %.2e' % b0)
 
+    # determine xi0 and b0 scaling
+    xi_sc = 10 ** np.floor(np.log10(np.abs(xi0)))
+    b_sc = 10 ** np.floor(np.log10(np.abs(b0)))
+
     # form residuals
     # TODO: this is special case as the r core is the last core
     def res(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
-        b = x[1] * b0
+        xi = x[0] * xi_sc
+        b = x[1] * b_sc
         s_r = x[2:] # in [0,1]
 
         # form Gs2 (the form factor)
@@ -92,15 +96,15 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     def jac(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         s_r = x[2:] # in [0,1]
 
         # form Gs2 (the form factor)
         Gs2 = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], s_r ** 2, axes=(1,0))
 
         # xi and b derivatives
-        dxi = (xi0 *  Gs2 ) / I_data_std # scaled
-        db = b0 / I_data_std # scaled
+        dxi = (xi_sc *  Gs2 ) / I_data_std # scaled
+        db = b_sc / I_data_std # scaled
 
         # form G
         G = core_q[0,:,:] @ core_r[:,:,0]
@@ -118,14 +122,14 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     def hess_term2(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         s_r = x[2:] # in [0,1]
 
         # form G
         G = core_q[0,:,:] @ core_r[:,:,0]
 
         # form off-diagonal nonzero block
-        dsxi = ( 2 * xi0 * G * s_r ) / I_data_std[:,np.newaxis] # scaled
+        dsxi = ( 2 * xi_sc * G * s_r ) / I_data_std[:,np.newaxis] # scaled
 
         # form diagonal block
         ds2 = ( 2 * xi * G ) / I_data_std[:,np.newaxis]
@@ -147,7 +151,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # check residual
     if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, np.sqrt(w_r_true)))
+        x_true_scaled = np.hstack((xi_true/xi_sc, b_true/b_sc, np.sqrt(w_r_true)))
         eps = np.abs(res(x_true_scaled))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 
@@ -241,12 +245,12 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # call SciPy minimize with variable scaling
     print('\nCalling SciPy minimize...')
-    s0_scaled = np.hstack((1,1,np.sqrt(w_r_0)))
+    s0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,np.sqrt(w_r_0)))
     result = opt.minimize(objfun, s0_scaled, jac=objgrad, hess=objhess, constraints=objcon, method='trust-constr', options={'verbose':3,'maxiter':200})
 
     # extract results and unscale
-    xi_opt = result.x[0] * xi0
-    b_opt = result.x[1] * b0
+    xi_opt = result.x[0] * xi_sc
+    b_opt = result.x[1] * b_sc
     w_r_opt = result.x[2:] ** 2
     print()
     print('xi*: %.2e' % xi_opt)

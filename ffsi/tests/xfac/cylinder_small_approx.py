@@ -18,9 +18,6 @@ import numpy as np
 from ffsi.models.cylinder import G_cylinder
 from ffsi.tensor_train import tt_approx
 
-# for timing
-import time
-
 # contrast
 drho = 1
 

@@ -67,12 +67,16 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print('xi0: %.2e' % xi0)
     print('b0: %.2e' % b0)
 
+    # determine xi0 and b0 scaling
+    xi_sc = 10 ** np.floor(np.log10(np.abs(xi0)))
+    b_sc = 10 ** np.floor(np.log10(np.abs(b0)))
+
     # form residuals
     # TODO: this is special case as the r core is the last core
     def eval_r(x):
 
         # extract variable scalings
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         b = x[1] * b0
         w_r = x[2:] # in [0,1]
 
@@ -92,14 +96,14 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     def eval_Jr(x):
 
         # extract variables and unscale
-        xi = x[0] * xi0
+        xi = x[0] * xi_sc
         w_r = x[2:] # in [0,1]
 
         # form Gw (the form factor)
         Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
 
         # xi and b derivatives
-        dxi = (xi0 *  Gw ) / I_data_std # scaled
+        dxi = (xi_sc *  Gw ) / I_data_std # scaled
         db = b0 / I_data_std # scaled
 
         # form G
@@ -115,7 +119,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
 
     # check residual
     if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi0, b_true/b0, w_r_true))
+        x_true_scaled = np.hstack((xi_true/xi_sc, b_true/b0, w_r_true))
         eps = np.abs(eval_r(x_true_scaled))
         print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
 
@@ -140,7 +144,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     options['stop_pg_absolute'] = 1e-6
 
     # form and scale initial optimization variable
-    x0_scaled = np.hstack((1,1,w_r_0))
+    x0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,w_r_0))
 
     # set GALAHAD SNLS Jacobian info
     Jr_type = 'dense'
@@ -170,7 +174,7 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     print('** snls exit status:', info['status'])
 
     # extract results and unscale
-    xi_opt = x[0] * xi0
+    xi_opt = x[0] * xi_sc
     b_opt = x[1] * b0
     w_r_opt = x[2:]
     print()
