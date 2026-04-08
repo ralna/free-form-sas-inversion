@@ -7,9 +7,9 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from ffsi.models.sphere import G_sphere
 from ffsi.tensor_train import tt_approx
-#from ffsi.optimize_sphere_galahad import tt_optimize
+from ffsi.optimize_sphere_galahad import tt_optimize
 #from ffsi.optimize_sphere_nonlinear import tt_optimize
-from ffsi.optimize_sphere_nonlinear_squared import tt_optimize
+#from ffsi.optimize_sphere_nonlinear_squared import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -121,7 +121,9 @@ plt.show()
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, check_residual=True, check_derivative=True, xi_true=xi_true, b_true=b_true, w_r_true=w_true)
+xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
+                                   check_residual=True, check_derivative=True,
+                                   xi_true=xi_true, b_true=b_true, w_r_true=w_true)
 
 # plot optimized distributions
 plt.figure()

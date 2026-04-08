@@ -8,6 +8,7 @@ I_data - intensity data
 I_data_std - error on intensity data
 
 Optional Parameters:
+sigma - regularization parameter value
 check_residual - check residual error (slow)
 check_derivative - numerically check Jacobian (slow)
 xi_true - real xi for above checks
@@ -35,7 +36,7 @@ from galahad import snls
 from scipy.optimize._numdiff import approx_derivative
 
 
-def tt_optimize(tt, dims, I_data, I_data_std,
+def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
                 check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_r_true=None):
 
     # TODO: this is very special case for sphere
@@ -89,7 +90,10 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         # intensity misfit
         eps = (I_model - I_data) / I_data_std
 
-        return eps
+        # regularisation term sigma(w[i+1]-w[i])
+        reg = sigma * np.diff(w_r)
+
+        return np.hstack((eps,reg))
 
     # form Jacobian
     # TODO: this is special case as the r core is the last core
@@ -112,10 +116,14 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         # w derivative
         dw = ( xi * G ) / I_data_std[:,np.newaxis]
 
-        # intensity misfit derivative
-        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw))
+        # intensity misfit derivative (flattened)
+        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw)).flatten()
 
-        return deps.flatten()
+        # regularization term derivative (sparse)
+        dreg1 = sigma * np.ones(nr-1)  # w[i+1] term
+        dreg2 = -sigma * np.ones(nr-1) # -w[i] term
+
+        return np.hstack((deps,dreg1,dreg2))
 
     # check residual
     if check_residual:
@@ -127,7 +135,8 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     if check_derivative:
         jac1 = eval_Jr(x_true_scaled)
         jac2 = approx_derivative(eval_r, x_true_scaled) # numdiff derivative
-        ej = np.abs(jac1-jac2.flatten())
+        jac2 = np.hstack((jac2[:nq,:].flatten(),np.diagonal(jac2[nq:,2:],offset=1)[:1+nr],np.diagonal(jac2[nq:,2:])[:1+nr])) # sparsify numdiff derivative
+        ej = np.abs(jac1-jac2)
         print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
 
     # set GALAHAD SNLS options
@@ -147,16 +156,25 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     x0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,w_r_0))
 
     # set GALAHAD SNLS Jacobian info
-    Jr_type = 'dense'
-    Jr_ne = nq*(2+nr)
-    Jr_row = None
-    Jr_col = None
+    Jr_type = 'coordinate'
+    Jr_ne = nq*(2+nr) + 2*(nr-1)
+    # flattened intensity misfit derivative
+    Jr_eps_row = np.tile(np.arange(nq),(2+nr,1)).flatten('F')
+    Jr_eps_col = np.tile(np.arange(2+nr),nq)
+    # sparse sigma(w[i+1]-w[i]) derivative
+    Jr_reg1_row = np.arange(nq,nq+nr-1)
+    Jr_reg1_col = np.arange(3,2+nr) # w[i+1] term
+    Jr_reg2_row = np.arange(nq,nq+nr-1)
+    Jr_reg2_col = np.arange(2,1+nr) # -w[i] term
+    # combined derivative
+    Jr_row = np.hstack((Jr_eps_row,Jr_reg1_row,Jr_reg2_row))
+    Jr_col = np.hstack((Jr_eps_col,Jr_reg1_col,Jr_reg2_col))
     Jr_ptr_ne = 0
     Jr_ptr = None
 
     # set GALAHAD SNLS cohorts
     n = 2 + nr
-    m_r = nq
+    m_r = nq + nr-1
     m_c = 1
     cohort = np.hstack((np.array([-1,-1]),np.zeros(nr, dtype=int)))
 
