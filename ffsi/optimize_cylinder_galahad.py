@@ -7,6 +7,9 @@ dims - dimensions of each Green's tensor index
 I_data - intensity data
 I_data_std - error on intensity data
 
+Optional Parameters:
+sigma - regularization parameter value
+
 Returns:
 xi_opt - optimal xi
 b_opt - optimal b
@@ -32,7 +35,7 @@ from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(tt, dims, I_data, I_data_std,
+def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
                 check_residual=False, check_derivative=False, xi_true=None, b_true=None,
                 w_l_true=None, w_r_true=None, w_theta_true=None, w_phi_true=None):
 
@@ -101,7 +104,13 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         # intensity misfit
         eps = (I_model - I_data) / I_data_std
 
-        return eps.flatten()
+        # regularisation terms sigma(w[i+1]-w[i])
+        reg_l = sigma * np.diff(w_l)
+        reg_r = sigma * np.diff(w_r)
+        reg_theta = sigma * np.diff(w_theta)
+        reg_phi = sigma * np.diff(w_phi)
+
+        return np.hstack((eps.flatten(),reg_l,reg_r,reg_theta,reg_phi))
 
     # form Jacobian
     # TODO: this is special case
@@ -154,10 +163,20 @@ def tt_optimize(tt, dims, I_data, I_data_std,
         dwt = dwt.reshape(-1, dwt.shape[-1])
         dwp = dwp.reshape(-1, dwp.shape[-1])
 
-        # intensity misfit derivative
-        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dwl,dwr,dwt,dwp))
+        # intensity misfit derivative (flattened)
+        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dwl,dwr,dwt,dwp)).flatten()
 
-        return deps.flatten()
+        # regularization term derivatives (sparse)
+        dreg_l1 = sigma * np.ones(nl-1)
+        dreg_l2 = -sigma * np.ones(nl-1)
+        dreg_r1 = sigma * np.ones(nr-1)
+        dreg_r2 = -sigma * np.ones(nr-1)
+        dreg_t1 = sigma * np.ones(ntheta-1)
+        dreg_t2 = -sigma * np.ones(ntheta-1)
+        dreg_p1 = sigma * np.ones(nphi-1)
+        dreg_p2 = -sigma * np.ones(nphi-1)
+
+        return np.hstack((deps,dreg_l1,dreg_l2,dreg_r1,dreg_r2,dreg_t1,dreg_t2,dreg_p1,dreg_p2))
 
     # check residual
     if check_residual:
@@ -190,16 +209,48 @@ def tt_optimize(tt, dims, I_data, I_data_std,
     x0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,w_l_0,w_r_0,w_theta_0,w_phi_0))
 
     # set GALAHAD SNLS Jacobian info
-    Jr_type = 'dense'
-    Jr_ne = nqx*nqy*(2+nl+nr+ntheta+nphi)
-    Jr_row = None
-    Jr_col = None
+    Jr_type = 'coordinate'
+    Jr_ne = nqx*nqy*(2+nl+nr+ntheta+nphi) + 2*(nl-1) + 2*(nr-1) + 2*(ntheta-1) + 2*(nphi-1)
+    # flattened intensity misfit derivative
+    Jr_eps_row = np.tile(np.arange(nqx*nqy),(2+nl+nr+ntheta+nphi,1)).flatten('F')
+    Jr_eps_col = np.tile(np.arange(2+nl+nr+ntheta+nphi),nqx*nqy)
+    # sparse regularization derivative for w_l
+    Jr_reg_l1_row = np.arange(nqx*nqy,nqx*nqy+nl-1)
+    Jr_reg_l2_row = np.arange(nqx*nqy,nqx*nqy+nl-1)
+    Jr_reg_l1_col = np.arange(3,2+nl) # w_l[i+1] term
+    Jr_reg_l2_col = np.arange(2,2+nl-1) # -w_l[i] term
+    # sparse regularization derivative for w_r
+    Jr_reg_r1_row = np.arange(nqx*nqy+nl-1,nqx*nqy+nl-1+nr-1)
+    Jr_reg_r2_row = np.arange(nqx*nqy+nl-1,nqx*nqy+nl-1+nr-1)
+    Jr_reg_r1_col = np.arange(2+nl+1,2+nl+nr) # w_r[i+1] term
+    Jr_reg_r2_col = np.arange(2+nl,2+nl+nr-1) # -w_r[i] term
+    # sparse regularization derivative for w_theta
+    Jr_reg_t1_row = np.arange(nqx*nqy+nl-1+nr-1,nqx*nqy+nl-1+nr-1+ntheta-1)
+    Jr_reg_t2_row = np.arange(nqx*nqy+nl-1+nr-1,nqx*nqy+nl-1+nr-1+ntheta-1)
+    Jr_reg_t1_col = np.arange(2+nl+nr+1,2+nl+nr+ntheta) # w_theta[i+1] term
+    Jr_reg_t2_col = np.arange(2+nl+nr,2+nl+nr+ntheta-1) # -w_theta[i] term
+    # sparse regularization derivative for w_phi
+    Jr_reg_p1_row = np.arange(nqx*nqy+nl-1+nr-1+ntheta-1,nqx*nqy+nl-1+nr-1+ntheta-1+nphi-1)
+    Jr_reg_p2_row = np.arange(nqx*nqy+nl-1+nr-1+ntheta-1,nqx*nqy+nl-1+nr-1+ntheta-1+nphi-1)
+    Jr_reg_p1_col = np.arange(2+nl+nr+ntheta+1,2+nl+nr+ntheta+nphi) # w_phi[i+1] term
+    Jr_reg_p2_col = np.arange(2+nl+nr+ntheta,2+nl+nr+ntheta+nphi-1) # -w_phi[i] term
+    # combined derivative
+    Jr_row = np.hstack((Jr_eps_row,
+                        Jr_reg_l1_row,Jr_reg_l2_row,
+                        Jr_reg_r1_row,Jr_reg_r2_row,
+                        Jr_reg_t1_row,Jr_reg_t2_row,
+                        Jr_reg_p1_row,Jr_reg_p2_row))
+    Jr_col = np.hstack((Jr_eps_col,
+                        Jr_reg_l1_col,Jr_reg_l2_col,
+                        Jr_reg_r1_col,Jr_reg_r2_col,
+                        Jr_reg_t1_col,Jr_reg_t2_col,
+                        Jr_reg_p1_col,Jr_reg_p2_col))
     Jr_ptr_ne = 0
     Jr_ptr = None
 
     # set GALAHAD SNLS cohorts
     n = 2 + nl + nr + ntheta + nphi
-    m_r = nqx * nqy
+    m_r = nqx * nqy + nl-1 + nr-1 + ntheta-1 + nphi-1
     m_c = 4
     cohort = np.hstack(( np.array([-1,-1]), np.zeros(nl, dtype=int), np.ones(nr, dtype=int),
                         2*np.ones(ntheta, dtype=int), 3*np.ones(nphi, dtype=int) ))

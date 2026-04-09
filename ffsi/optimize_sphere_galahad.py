@@ -165,7 +165,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
     Jr_reg1_row = np.arange(nq,nq+nr-1)
     Jr_reg1_col = np.arange(3,2+nr) # w[i+1] term
     Jr_reg2_row = np.arange(nq,nq+nr-1)
-    Jr_reg2_col = np.arange(2,1+nr) # -w[i] term
+    Jr_reg2_col = np.arange(2,2+nr-1) # -w[i] term
     # combined derivative
     Jr_row = np.hstack((Jr_eps_row,Jr_reg1_row,Jr_reg2_row))
     Jr_col = np.hstack((Jr_eps_col,Jr_reg1_col,Jr_reg2_col))
