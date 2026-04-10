@@ -23,7 +23,7 @@ drho = 1
 # qx, qy discretisation
 nqx = 30
 nqy = 30
-q_side = np.logspace(-1, 0, 15) # log scale on each side
+q_side = np.logspace(-2, 0, 15) # log scale on each side
 qx = np.hstack((-q_side[::-1], q_side))
 qy = qx.copy()
 
