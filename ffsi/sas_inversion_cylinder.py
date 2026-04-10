@@ -38,8 +38,8 @@ ru = 90
 nr = 9
 
 # theta discretisation
-thetal = 5
-thetau = 60
+thetal = 20
+thetau = 75
 ntheta = 8
 
 # phi discretisation
@@ -52,10 +52,6 @@ l = np.linspace(ll, lu, nl)
 r = np.linspace(rl, ru, nr)
 theta = np.linspace(thetal, thetau, ntheta)
 phi = np.linspace(phil, phiu, nphi)
-
-# convert degrees to radians
-theta = np.deg2rad(theta)
-phi = np.deg2rad(phi)
 
 print('qx: %d' % nqx)
 print('qy: %d' % nqy)
@@ -92,10 +88,14 @@ def crazy_distribution(x, gaussians, noise_level, fade_start, fade_end, seed=0):
     return w_true
 
 # generate ground truth distributions
-w_l_true = crazy_distribution(l, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 1, 1, 1)
-w_r_true = crazy_distribution(r, [(1, 60, 3), (2, 70, 4), (2, 80, 3)], 1, 1, 1)
-w_theta_true = np.deg2rad(crazy_distribution(theta, [(4, 15, 5), (2, 35, 5), (2, 50, 5)], 2, 1, 1))
-w_phi_true = np.deg2rad(crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 3, 1, 1))
+w_l_true = crazy_distribution(l, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 0, 1, 1)
+w_r_true = crazy_distribution(r, [(1, 60, 3), (2, 70, 4), (2, 80, 3)], 0, 1, 1)
+w_theta_true = np.deg2rad(crazy_distribution(theta, [(4, 30, 5), (2, 50, 5), (2, 65, 5)], 0, 1, 1))
+w_phi_true = np.deg2rad(crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 0, 1, 1))
+
+# convert degrees to radians
+theta = np.deg2rad(theta)
+phi = np.deg2rad(phi)
 
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)

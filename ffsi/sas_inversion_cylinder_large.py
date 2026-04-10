@@ -74,17 +74,6 @@ w_r_true = np.loadtxt('ffsi/data/cylinder_large/w_r_true.txt')
 w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large/w_theta_true.txt'))
 w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large/w_phi_true.txt'))
 
-# ground truth of scale and background
-scale_true = 0.15
-b_true = 2.2e-4
-print('b_true: %.2e' % b_true)
-
-# compute the ground truth of xi
-V = np.pi * l[:,np.newaxis] * r[np.newaxis,:] ** 2 # cylinder volume
-V_ave = w_l_true.T @ V @ w_r_true
-xi_true = 1e-4 * scale_true / V_ave
-print('xi_true: %.2e' % xi_true)
-
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("True distributions")
@@ -106,6 +95,17 @@ ax[0,1].grid()
 ax[1,0].grid()
 ax[1,1].grid()
 plt.show()
+
+# ground truth of scale and background
+scale_true = 0.15
+b_true = 2.2e-4
+print('b_true: %.2e' % b_true)
+
+# compute the ground truth of xi
+V = np.pi * l[:,np.newaxis] * r[np.newaxis,:] ** 2 # cylinder volume
+V_ave = w_l_true.T @ V @ w_r_true
+xi_true = 1e-4 * scale_true / V_ave
+print('xi_true: %.2e' % xi_true)
 
 # load true intensity data from paper
 I_data = np.loadtxt('ffsi/data/cylinder_large/intensities.txt')
