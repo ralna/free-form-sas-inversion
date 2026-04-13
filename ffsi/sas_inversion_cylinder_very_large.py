@@ -7,8 +7,8 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from ffsi.models.cylinder import G_cylinder
 from ffsi.tensor_train import tt_approx
-#from ffsi.optimize_cylinder_galahad import tt_optimize
-from ffsi.optimize_cylinder_nonlinear_squared import tt_optimize
+from ffsi.optimize_cylinder_galahad import tt_optimize
+#from ffsi.optimize_cylinder_nonlinear_squared import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -31,22 +31,22 @@ qy = qx.copy()
 # l discretisation
 ll = 200
 lu = 600
-nl = 40
+nl = 100
 
 # r discretisation
 rl = 50
 ru = 90
-nr = 40
+nr = 100
 
 # theta discretisation (degrees)
 thetal = 20
 thetau = 75
-ntheta = 40
+ntheta = 100
 
 # phi discretisation (degrees)
 phil = 150
 phiu = 240
-nphi = 40
+nphi = 100
 
 # discretise l, r, theta, phi
 l = np.linspace(ll, lu, nl)
@@ -69,10 +69,10 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 print("\nStep 1: Load pre-generated ground truth\n")
 
 # load true distributions from paper
-w_l_true = np.loadtxt('ffsi/data/cylinder_large/w_l_true.txt')
-w_r_true = np.loadtxt('ffsi/data/cylinder_large/w_r_true.txt')
-w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large/w_theta_true.txt'))
-w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_large/w_phi_true.txt'))
+w_l_true = np.loadtxt('ffsi/data/cylinder_very_large/w_l_true.txt')
+w_r_true = np.loadtxt('ffsi/data/cylinder_very_large/w_r_true.txt')
+w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_very_large/w_theta_true.txt'))
+w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_very_large/w_phi_true.txt'))
 
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)
@@ -108,7 +108,7 @@ xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # load true intensity data from paper
-I_data = np.loadtxt('ffsi/data/cylinder_large/intensities.txt')
+I_data = np.loadtxt('ffsi/data/cylinder_very_large/intensities.txt')
 
 # plot intensities
 plt.figure()
@@ -129,7 +129,7 @@ dims = (nqx,nqy,nl,nr,ntheta,nphi)
 G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=False)
+tt = tt_approx(G_func, dims, tol=1e-5, max_rank=250, compute_true_error=False)
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
