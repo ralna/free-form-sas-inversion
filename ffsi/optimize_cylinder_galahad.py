@@ -197,6 +197,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
     options['print_level'] = 2
     options['jacobian_available'] = 2
     #options['slls_options']['print_level'] = 1
+    options['slls_options']['sbls_options']['factorization'] = 1 # use Schur-complement
     options['slls_options']['sbls_options']['symmetric_linear_solver'] = 'sytr '
     options['slls_options']['sbls_options']['definite_linear_solver'] = 'potr '
     options['sllsb_options']['fdc_options']['symmetric_linear_solver'] = 'sytr '
