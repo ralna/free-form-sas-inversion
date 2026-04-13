@@ -90,8 +90,8 @@ def crazy_distribution(x, gaussians, noise_level, fade_start, fade_end, seed=0):
 # generate ground truth distributions
 w_l_true = crazy_distribution(l, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 0, 1, 1)
 w_r_true = crazy_distribution(r, [(1, 60, 3), (2, 70, 4), (2, 80, 3)], 0, 1, 1)
-w_theta_true = np.deg2rad(crazy_distribution(theta, [(4, 30, 5), (2, 50, 5), (2, 65, 5)], 0, 1, 1))
-w_phi_true = np.deg2rad(crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 0, 1, 1))
+w_theta_true = crazy_distribution(theta, [(4, 30, 5), (2, 50, 5), (2, 65, 5)], 0, 1, 1)
+w_phi_true = crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 0, 1, 1)
 
 # convert degrees to radians
 theta = np.deg2rad(theta)

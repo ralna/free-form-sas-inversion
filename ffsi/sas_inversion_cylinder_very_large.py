@@ -71,8 +71,8 @@ print("\nStep 1: Load pre-generated ground truth\n")
 # load true distributions from paper
 w_l_true = np.loadtxt('ffsi/data/cylinder_very_large/w_l_true.txt')
 w_r_true = np.loadtxt('ffsi/data/cylinder_very_large/w_r_true.txt')
-w_theta_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_very_large/w_theta_true.txt'))
-w_phi_true = np.deg2rad(np.loadtxt('ffsi/data/cylinder_very_large/w_phi_true.txt'))
+w_theta_true = np.loadtxt('ffsi/data/cylinder_very_large/w_theta_true.txt')
+w_phi_true = np.loadtxt('ffsi/data/cylinder_very_large/w_phi_true.txt')
 
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)
