@@ -20,10 +20,7 @@ w_phi_opt - optimal w_phi
 
 Example usage:
 
-dims = (nqx,nqy,nl,nr,ntheta,nphi)
-G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
-tt = tt_approx(G_func, dims)
-xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data_std)
+xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data_std)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
@@ -50,7 +47,7 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
 
     # this averages out G over the parameters
     # TODO: this is special case
-    G_ave = np.sum(G, axis=(2,3,4,5))
+    G_ave = np.sum(G, axis=(2,3,4,5)) / (nl*nr*ntheta*nphi)
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
