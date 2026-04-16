@@ -164,7 +164,7 @@ dims = (nqx,nqy,nrp,nre,ntheta,nphi)
 G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
-tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=False)
+tt = tt_approx(G_func, dims, tol=1e-10, max_rank=500, compute_true_error=False)
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
