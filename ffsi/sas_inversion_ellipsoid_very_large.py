@@ -1,14 +1,13 @@
 """
-Free-form SAS Inversion Script for Simulated Cylinder Data
+Free-form SAS Inversion Script for Simulated Ellipsoid Data
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.cylinder import G_cylinder
+from ffsi.models.ellipsoid import G_ellipsoid
 from ffsi.tensor_train import tt_approx
-from ffsi.optimize_cylinder_galahad import tt_optimize
-#from ffsi.optimize_cylinder_nonlinear_squared import tt_optimize
+from ffsi.optimize_ellipsoid_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -28,29 +27,29 @@ q_center = np.linspace(-0.0095, 0.0095, 20) # linear scale in the cente
 qx = np.hstack((-q_side[::-1], q_center, q_side))
 qy = qx.copy()
 
-# l discretisation
-ll = 200
-lu = 600
-nl = 100
+# rp discretisation
+rpl = 50
+rpu = 90
+nrp = 100
 
-# r discretisation
-rl = 50
-ru = 90
-nr = 100
+# re discretisation
+rel = 200
+reu = 600
+nre = 100
 
-# theta discretisation (degrees)
+# theta discretisation
 thetal = 20
 thetau = 75
 ntheta = 100
 
-# phi discretisation (degrees)
+# phi discretisation
 phil = 150
 phiu = 240
 nphi = 100
 
-# discretise l, r, theta, phi
-l = np.linspace(ll, lu, nl)
-r = np.linspace(rl, ru, nr)
+# discretise rp, re, theta, phi
+rp = np.linspace(rpl, rpu, nrp)
+re = np.linspace(rel, reu, nre)
 theta = np.linspace(thetal, thetau, ntheta)
 phi = np.linspace(phil, phiu, nphi)
 
@@ -60,8 +59,8 @@ phi = np.deg2rad(phi)
 
 print('qx: %d' % nqx)
 print('qy: %d' % nqy)
-print('l: linspace(%d,%d,%d)' % (ll, lu, nl))
-print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
+print('rp: linspace(%d,%d,%d)' % (rpl, rpu, nrp))
+print('re: linspace(%d,%d,%d)' % (rel, reu, nre))
 print('theta: linspace(%d,%d,%d)' % (thetal, thetau, ntheta))
 print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 
@@ -69,22 +68,22 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 print("\nStep 1: Load pre-generated ground truth\n")
 
 # load true distributions
-w_l_true = np.loadtxt('ffsi/data/cylinder_very_large/w_l_true.txt')
-w_r_true = np.loadtxt('ffsi/data/cylinder_very_large/w_r_true.txt')
-w_theta_true = np.loadtxt('ffsi/data/cylinder_very_large/w_theta_true.txt')
-w_phi_true = np.loadtxt('ffsi/data/cylinder_very_large/w_phi_true.txt')
+w_rp_true = np.loadtxt('ffsi/data/ellipsoid_very_large/w_rp_true.txt')
+w_re_true = np.loadtxt('ffsi/data/ellipsoid_very_large/w_re_true.txt')
+w_theta_true = np.loadtxt('ffsi/data/ellipsoid_very_large/w_theta_true.txt')
+w_phi_true = np.loadtxt('ffsi/data/ellipsoid_very_large/w_phi_true.txt')
 
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("True distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(l, w_l_true * 100) # x100 to percent
-ax[0,1].plot(r, w_r_true * 100) # x100 to percent
+ax[0,0].plot(rp, w_rp_true * 100) # x100 to percent
+ax[0,1].plot(re, w_re_true * 100) # x100 to percent
 ax[1,0].plot(theta, w_theta_true * 100) # x100 to percent
 ax[1,1].plot(phi, w_phi_true * 100) # x100 to percent
-ax[0,0].set_xlabel(r"Length $l$ ($\AA$)")
-ax[0,1].set_xlabel(r"Radius $r$ ($\AA$)")
-ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
+ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
+ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
+ax[1,0].set_xlabel(r"Ellipsoid axis to beam angle $\theta$ (radians)")
 ax[1,1].set_xlabel(r"Rotation about beam $\phi$ (radians)")
 ax[0,0].set_ylabel(r"Weights $w$ (%)")
 ax[0,1].set_ylabel(r"Weights $w$ (%)")
@@ -102,13 +101,13 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-V = np.pi * l[:,np.newaxis] * r[np.newaxis,:] ** 2 # cylinder volume
-V_ave = w_l_true.T @ V @ w_r_true
+V = 4/3 * np.pi * rp[:,np.newaxis] * re[np.newaxis,:] ** 2 # ellipsoid volume
+V_ave = w_rp_true.T @ V @ w_re_true
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # load true intensity data
-I_data = np.loadtxt('ffsi/data/cylinder_very_large/intensities.txt')
+I_data = np.loadtxt('ffsi/data/ellipsoid_very_large/intensities.txt')
 
 # plot intensities
 plt.figure()
@@ -125,29 +124,29 @@ plt.show()
 print("\nStep 2: Approximate Green's function\n")
 
 # function for cross-interpolation
-dims = (nqx,nqy,nl,nr,ntheta,nphi)
-G_func = lambda inds: G_cylinder(qx[inds[0]], qy[inds[1]], l[inds[2]], r[inds[3]], theta[inds[4]], phi[inds[5]], drho)
+dims = (nqx,nqy,nrp,nre,ntheta,nphi)
+G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
 
 # form low-rank TT-representation
 tt = tt_approx(G_func, dims, tol=1e-10, max_rank=250, compute_true_error=False)
 
 ## Step 3: SAS Inversion with low-rank G
 print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, sigma=0.25,
-                                                                      check_residual=False, check_derivative=False, xi_true=xi_true, b_true=b_true,
-                                                                      w_l_true=w_l_true, w_r_true=w_r_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
+xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, sigma=0,
+                                                                        check_residual=False, check_derivative=False, xi_true=xi_true, b_true=b_true,
+                                                                        w_rp_true=w_rp_true, w_re_true=w_re_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("Optimized distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(l, w_l_opt * 100) # x100 to percent
-ax[0,1].plot(r, w_r_opt * 100) # x100 to percent
+ax[0,0].plot(rp, w_rp_opt * 100) # x100 to percent
+ax[0,1].plot(re, w_re_opt * 100) # x100 to percent
 ax[1,0].plot(theta, w_theta_opt * 100) # x100 to percent
 ax[1,1].plot(phi, w_phi_opt * 100) # x100 to percent
-ax[0,0].set_xlabel(r"Length $l$ ($\AA$)")
-ax[0,1].set_xlabel(r"Radius $r$ ($\AA$)")
-ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
+ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
+ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
+ax[1,0].set_xlabel(r"Ellipsoid axis to beam angle $\theta$ (radians)")
 ax[1,1].set_xlabel(r"Rotation about beam $\phi$ (radians)")
 ax[0,0].set_ylabel(r"Weights $w$ (%)")
 ax[0,1].set_ylabel(r"Weights $w$ (%)")
