@@ -89,6 +89,6 @@ G_gpu = G_cylinder_cupy(qx_gpu, qy_gpu, l_gpu, r_gpu, theta_gpu, phi_gpu, drho)
 # move to CPU for error comparison
 G_cpu = G_gpu.get()
 
-# compare errors in G
-error = np.linalg.norm(G - G_cpu)
-print('G computation error: %.2e' % error)
+# compare relative error in G computation
+rel_err = np.linalg.norm(G - G_cpu) / np.linalg.norm(G_cpu)
+print('\nG computation relative error: %.2e' % rel_err)

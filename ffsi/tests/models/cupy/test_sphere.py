@@ -53,6 +53,6 @@ G_gpu = G_sphere_cupy(q_gpu, r_gpu, drho)
 # move to CPU for error comparison
 G_cpu = G_gpu.get()
 
-# compare errors in G
-error = np.linalg.norm(G - G_cpu)
-print('G computation error: %.2e' % error)
+# compare relative error in G computation
+rel_err = np.linalg.norm(G - G_cpu) / np.linalg.norm(G_cpu)
+print('\nG computation relative error: %.2e' % rel_err)
