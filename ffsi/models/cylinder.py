@@ -22,9 +22,11 @@ def G_cylinder(qx, qy, l, r, theta, phi, drho):
     # cylinder volume
     V = np.pi * l * r ** 2
 
-    # cylinder scattering amplitude
+    # coordinate transformation
     qc = qx * np.sin(theta) * np.cos(phi) + qy * np.sin(theta) * np.sin(phi)
     qa = np.sqrt(qx ** 2 + qy ** 2 - qc ** 2)
+
+    # cylinder scattering amplitude
     hqcl = 0.5 * qc * l
     qar = qa * r
     F = 2 * V * drho * ( np.sin(hqcl) / hqcl ) * ( j1(qar) / qar )
