@@ -104,13 +104,15 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
         # intensity misfit
         eps = (I_model - I_data) / I_data_std
 
-        # regularisation terms sigma(w[i+1]-w[i])
-        reg_rp = sigma * np.diff(w_rp)
-        reg_re = sigma * np.diff(w_re)
-        reg_theta = sigma * np.diff(w_theta)
-        reg_phi = sigma * np.diff(w_phi)
-
-        return np.hstack((eps.flatten(),reg_rp,reg_re,reg_theta,reg_phi))
+        # handle regularization
+        if sigma is None: # no regularization
+            return eps.flatten()
+        else: # regularisation terms sigma(w[i+1]-w[i])
+            reg_rp = sigma * np.diff(w_rp)
+            reg_re = sigma * np.diff(w_re)
+            reg_theta = sigma * np.diff(w_theta)
+            reg_phi = sigma * np.diff(w_phi)
+            return np.hstack((eps.flatten(),reg_rp,reg_re,reg_theta,reg_phi))
 
     # form Jacobian
     # TODO: this is special case
@@ -166,17 +168,19 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
         # intensity misfit derivative (flattened)
         deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dwrp,dwre,dwt,dwp)).flatten()
 
-        # regularization term derivatives (sparse)
-        dreg_rp1 = sigma * np.ones(nrp-1)
-        dreg_rp2 = -sigma * np.ones(nrp-1)
-        dreg_re1 = sigma * np.ones(nre-1)
-        dreg_re2 = -sigma * np.ones(nre-1)
-        dreg_t1 = sigma * np.ones(ntheta-1)
-        dreg_t2 = -sigma * np.ones(ntheta-1)
-        dreg_p1 = sigma * np.ones(nphi-1)
-        dreg_p2 = -sigma * np.ones(nphi-1)
-
-        return np.hstack((deps,dreg_rp1,dreg_rp2,dreg_re1,dreg_re2,dreg_t1,dreg_t2,dreg_p1,dreg_p2))
+        # handle regularization
+        if sigma is None: # no regularization
+            return deps
+        else: # regularization term derivatives (sparse)
+            dreg_rp1 = sigma * np.ones(nrp-1)
+            dreg_rp2 = -sigma * np.ones(nrp-1)
+            dreg_re1 = sigma * np.ones(nre-1)
+            dreg_re2 = -sigma * np.ones(nre-1)
+            dreg_t1 = sigma * np.ones(ntheta-1)
+            dreg_t2 = -sigma * np.ones(ntheta-1)
+            dreg_p1 = sigma * np.ones(nphi-1)
+            dreg_p2 = -sigma * np.ones(nphi-1)
+            return np.hstack((deps,dreg_rp1,dreg_rp2,dreg_re1,dreg_re2,dreg_t1,dreg_t2,dreg_p1,dreg_p2))
 
     # check residual
     if check_residual:
@@ -212,47 +216,56 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
 
     # set GALAHAD SNLS Jacobian info
     Jr_type = 'coordinate'
-    Jr_ne = nqx*nqy*(2+nrp+nre+ntheta+nphi) + 2*(nrp-1) + 2*(nre-1) + 2*(ntheta-1) + 2*(nphi-1)
-    # flattened intensity misfit derivative
-    Jr_eps_row = np.tile(np.arange(nqx*nqy),(2+nrp+nre+ntheta+nphi,1)).flatten('F')
-    Jr_eps_col = np.tile(np.arange(2+nrp+nre+ntheta+nphi),nqx*nqy)
-    # sparse regularization derivative for w_l
-    Jr_reg_l1_row = np.arange(nqx*nqy,nqx*nqy+nrp-1)
-    Jr_reg_l2_row = np.arange(nqx*nqy,nqx*nqy+nrp-1)
-    Jr_reg_l1_col = np.arange(3,2+nrp) # w_l[i+1] term
-    Jr_reg_l2_col = np.arange(2,2+nrp-1) # -w_l[i] term
-    # sparse regularization derivative for w_r
-    Jr_reg_r1_row = np.arange(nqx*nqy+nrp-1,nqx*nqy+nrp-1+nre-1)
-    Jr_reg_r2_row = np.arange(nqx*nqy+nrp-1,nqx*nqy+nrp-1+nre-1)
-    Jr_reg_r1_col = np.arange(2+nrp+1,2+nrp+nre) # w_r[i+1] term
-    Jr_reg_r2_col = np.arange(2+nrp,2+nrp+nre-1) # -w_r[i] term
-    # sparse regularization derivative for w_theta
-    Jr_reg_t1_row = np.arange(nqx*nqy+nrp-1+nre-1,nqx*nqy+nrp-1+nre-1+ntheta-1)
-    Jr_reg_t2_row = np.arange(nqx*nqy+nrp-1+nre-1,nqx*nqy+nrp-1+nre-1+ntheta-1)
-    Jr_reg_t1_col = np.arange(2+nrp+nre+1,2+nrp+nre+ntheta) # w_theta[i+1] term
-    Jr_reg_t2_col = np.arange(2+nrp+nre,2+nrp+nre+ntheta-1) # -w_theta[i] term
-    # sparse regularization derivative for w_phi
-    Jr_reg_p1_row = np.arange(nqx*nqy+nrp-1+nre-1+ntheta-1,nqx*nqy+nrp-1+nre-1+ntheta-1+nphi-1)
-    Jr_reg_p2_row = np.arange(nqx*nqy+nrp-1+nre-1+ntheta-1,nqx*nqy+nrp-1+nre-1+ntheta-1+nphi-1)
-    Jr_reg_p1_col = np.arange(2+nrp+nre+ntheta+1,2+nrp+nre+ntheta+nphi) # w_phi[i+1] term
-    Jr_reg_p2_col = np.arange(2+nrp+nre+ntheta,2+nrp+nre+ntheta+nphi-1) # -w_phi[i] term
-    # combined derivative
-    Jr_row = np.hstack((Jr_eps_row,
-                        Jr_reg_l1_row,Jr_reg_l2_row,
-                        Jr_reg_r1_row,Jr_reg_r2_row,
-                        Jr_reg_t1_row,Jr_reg_t2_row,
-                        Jr_reg_p1_row,Jr_reg_p2_row))
-    Jr_col = np.hstack((Jr_eps_col,
-                        Jr_reg_l1_col,Jr_reg_l2_col,
-                        Jr_reg_r1_col,Jr_reg_r2_col,
-                        Jr_reg_t1_col,Jr_reg_t2_col,
-                        Jr_reg_p1_col,Jr_reg_p2_col))
+    if sigma is None: # no regularization
+        Jr_ne = nqx*nqy*(2+nrp+nre+ntheta+nphi)
+        # flattened intensity misfit derivative
+        Jr_row = np.tile(np.arange(nqx*nqy),(2+nrp+nre+ntheta+nphi,1)).flatten('F')
+        Jr_col = np.tile(np.arange(2+nrp+nre+ntheta+nphi),nqx*nqy)
+    else: # regularization requested
+        Jr_ne = nqx*nqy*(2+nrp+nre+ntheta+nphi) + 2*(nrp-1) + 2*(nre-1) + 2*(ntheta-1) + 2*(nphi-1)
+        # flattened intensity misfit derivative
+        Jr_eps_row = np.tile(np.arange(nqx*nqy),(2+nrp+nre+ntheta+nphi,1)).flatten('F')
+        Jr_eps_col = np.tile(np.arange(2+nrp+nre+ntheta+nphi),nqx*nqy)
+        # sparse regularization derivative for w_l
+        Jr_reg_l1_row = np.arange(nqx*nqy,nqx*nqy+nrp-1)
+        Jr_reg_l2_row = np.arange(nqx*nqy,nqx*nqy+nrp-1)
+        Jr_reg_l1_col = np.arange(3,2+nrp) # w_l[i+1] term
+        Jr_reg_l2_col = np.arange(2,2+nrp-1) # -w_l[i] term
+        # sparse regularization derivative for w_r
+        Jr_reg_r1_row = np.arange(nqx*nqy+nrp-1,nqx*nqy+nrp-1+nre-1)
+        Jr_reg_r2_row = np.arange(nqx*nqy+nrp-1,nqx*nqy+nrp-1+nre-1)
+        Jr_reg_r1_col = np.arange(2+nrp+1,2+nrp+nre) # w_r[i+1] term
+        Jr_reg_r2_col = np.arange(2+nrp,2+nrp+nre-1) # -w_r[i] term
+        # sparse regularization derivative for w_theta
+        Jr_reg_t1_row = np.arange(nqx*nqy+nrp-1+nre-1,nqx*nqy+nrp-1+nre-1+ntheta-1)
+        Jr_reg_t2_row = np.arange(nqx*nqy+nrp-1+nre-1,nqx*nqy+nrp-1+nre-1+ntheta-1)
+        Jr_reg_t1_col = np.arange(2+nrp+nre+1,2+nrp+nre+ntheta) # w_theta[i+1] term
+        Jr_reg_t2_col = np.arange(2+nrp+nre,2+nrp+nre+ntheta-1) # -w_theta[i] term
+        # sparse regularization derivative for w_phi
+        Jr_reg_p1_row = np.arange(nqx*nqy+nrp-1+nre-1+ntheta-1,nqx*nqy+nrp-1+nre-1+ntheta-1+nphi-1)
+        Jr_reg_p2_row = np.arange(nqx*nqy+nrp-1+nre-1+ntheta-1,nqx*nqy+nrp-1+nre-1+ntheta-1+nphi-1)
+        Jr_reg_p1_col = np.arange(2+nrp+nre+ntheta+1,2+nrp+nre+ntheta+nphi) # w_phi[i+1] term
+        Jr_reg_p2_col = np.arange(2+nrp+nre+ntheta,2+nrp+nre+ntheta+nphi-1) # -w_phi[i] term
+        # combined derivative
+        Jr_row = np.hstack((Jr_eps_row,
+                            Jr_reg_l1_row,Jr_reg_l2_row,
+                            Jr_reg_r1_row,Jr_reg_r2_row,
+                            Jr_reg_t1_row,Jr_reg_t2_row,
+                            Jr_reg_p1_row,Jr_reg_p2_row))
+        Jr_col = np.hstack((Jr_eps_col,
+                            Jr_reg_l1_col,Jr_reg_l2_col,
+                            Jr_reg_r1_col,Jr_reg_r2_col,
+                            Jr_reg_t1_col,Jr_reg_t2_col,
+                            Jr_reg_p1_col,Jr_reg_p2_col))
     Jr_ptr_ne = 0
     Jr_ptr = None
 
     # set GALAHAD SNLS cohorts
     n = 2 + nrp + nre + ntheta + nphi
-    m_r = nqx * nqy + nrp-1 + nre-1 + ntheta-1 + nphi-1
+    if sigma is None: # no regularization
+        m_r = nqx * nqy
+    else: # regularization requested
+        m_r = nqx * nqy + nrp-1 + nre-1 + ntheta-1 + nphi-1
     m_c = 4
     cohort = np.hstack(( np.array([-1,-1]), np.zeros(nrp, dtype=int), np.ones(nre, dtype=int),
                         2*np.ones(ntheta, dtype=int), 3*np.ones(nphi, dtype=int) ))
