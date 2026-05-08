@@ -129,6 +129,14 @@ V_ave = w_l_true.T @ V @ w_r_true
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
+# Calculate required memory for G
+print('\nG tensor memory requirements:')
+G_elem = nqx * nqy * nl * nr * ntheta * nphi
+bits = cp.finfo(cp.dtype(float)).bits
+G_mem = (G_elem * bits) / 8e9
+print(f'G elements: {G_elem:,}')
+print('G memory: %.2f GB' % G_mem)
+
 # Compute true G
 print('\nComputing full G tensor on GPU...')
 dims = (nqx,nqy,nl,nr,ntheta,nphi)
