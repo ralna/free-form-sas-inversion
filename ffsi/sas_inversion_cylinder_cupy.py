@@ -4,7 +4,6 @@ Free-form SAS Inversion Script for Simulated Cylinder Data (using full G tensor)
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import numpy as np
 import cupy as cp
 from ffsi.models.cupy.cylinder import G_cylinder
 from ffsi.optimize_cylinder_galahad_tensor import tt_optimize
@@ -22,9 +21,8 @@ drho = 1
 # qx, qy discretisation
 nqx = 60
 nqy = 60
-# TODO: this should be done on GPU
-qx = np.linspace(-0.75, 0.75, nqx)
-qy = np.linspace(-0.75, 0.75, nqy)
+qx = cp.linspace(-0.75, 0.75, nqx)
+qy = cp.linspace(-0.75, 0.75, nqy)
 
 # l discretisation
 ll = 200
@@ -47,11 +45,10 @@ phiu = 240
 nphi = 15
 
 # discretise l, r, theta, phi
-# TODO: this should be done on GPU
-l = np.linspace(ll, lu, nl)
-r = np.linspace(rl, ru, nr)
-theta = np.linspace(thetal, thetau, ntheta)
-phi = np.linspace(phil, phiu, nphi)
+l = cp.linspace(ll, lu, nl)
+r = cp.linspace(rl, ru, nr)
+theta = cp.linspace(thetal, thetau, ntheta)
+phi = cp.linspace(phil, phiu, nphi)
 
 print('qx: %d' % nqx)
 print('qy: %d' % nqy)
@@ -64,28 +61,27 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 print("\nStep 1: Generate ground truth\n")
 
 # ground truth distributions generator from paper
-# TODO: this should be done on GPU
 def crazy_distribution(x, gaussians, noise_level, fade_start, fade_end, seed=0):
     # create
-    w_true = np.zeros(x.shape)
+    w_true = cp.zeros(x.shape)
 
     # add Gaussians
     for factor, mean, stddev in gaussians:
-        w_true += factor * np.exp(-((x - mean) / stddev) ** 2)
+        w_true += factor * cp.exp(-((x - mean) / stddev) ** 2)
 
     # add noise
-    np.random.seed(seed)
-    w_true += noise_level * np.random.rand(*x.shape) * np.random.rand(*x.shape)
+    cp.random.seed(seed)
+    w_true += noise_level * cp.random.rand(*x.shape) * cp.random.rand(*x.shape)
 
     # fade both ends to make it look nicer
     if len(x) >= 3:
         w_true[0:fade_start] = 0.
-        w_true[fade_start:fade_end] *= np.linspace(0, 1, fade_end - fade_start)
+        w_true[fade_start:fade_end] *= cp.linspace(0, 1, fade_end - fade_start)
         w_true[-fade_start:] = 0.
-        w_true[-fade_end:-fade_start] *= np.linspace(1, 0, fade_end - fade_start)
+        w_true[-fade_end:-fade_start] *= cp.linspace(1, 0, fade_end - fade_start)
 
     # normalize to 1
-    w_true /= np.sum(w_true)
+    w_true /= cp.sum(w_true)
     return w_true
 
 # generate ground truth distributions
@@ -95,17 +91,17 @@ w_theta_true = crazy_distribution(theta, [(4, 15, 5), (2, 35, 5), (2, 50, 5)], 2
 w_phi_true = crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 3, 1, 1)
 
 # convert degrees to radians
-theta = np.deg2rad(theta)
-phi = np.deg2rad(phi)
+theta = cp.deg2rad(theta)
+phi = cp.deg2rad(phi)
 
 # plot "true" distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("True distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(l, w_l_true * 100) # x100 to percent
-ax[0,1].plot(r, w_r_true * 100) # x100 to percent
-ax[1,0].plot(theta, w_theta_true * 100) # x100 to percent
-ax[1,1].plot(phi, w_phi_true * 100) # x100 to percent
+ax[0,0].plot(l.get(), w_l_true.get() * 100) # x100 to percent
+ax[0,1].plot(r.get(), w_r_true.get() * 100) # x100 to percent
+ax[1,0].plot(theta.get(), w_theta_true.get() * 100) # x100 to percent
+ax[1,1].plot(phi.get(), w_phi_true.get() * 100) # x100 to percent
 ax[0,0].set_xlabel(r"Length $l$ ($\AA$)")
 ax[0,1].set_xlabel(r"Radius $r$ ($\AA$)")
 ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
@@ -126,40 +122,32 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-# TODO: this should be done on GPU
-V = np.pi * l[:,np.newaxis] * r[np.newaxis,:] ** 2 # cylinder volume
+# TODO: use a models function for the volume
+V = cp.pi * l[:,cp.newaxis] * r[cp.newaxis,:] ** 2 # cylinder volume
 V_ave = w_l_true.T @ V @ w_r_true
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
-# move discretized data to GPU
-# TODO: data should be formed on GPU rather than moved
-qx_gpu = cp.asarray(qx)
-qy_gpu = cp.asarray(qy)
-l_gpu = cp.asarray(l)
-r_gpu = cp.asarray(r)
-theta_gpu = cp.asarray(theta)
-phi_gpu = cp.asarray(phi)
-
 # Compute true G
 print('\nComputing full G tensor on GPU...')
 dims = (nqx,nqy,nl,nr,ntheta,nphi)
-G_gpu = G_cylinder(qx_gpu, qy_gpu, l_gpu, r_gpu, theta_gpu, phi_gpu, drho)
-# TODO: should be moved to CPU later
-G = G_gpu.get() # move from GPU to CPU
+G = G_cylinder(qx, qy, l, r, theta, phi, drho)
 
 # compute Gw_true for simulating the intensities
-# TODO: this should be done on GPU
 print('\nComputing Gw for simulating the intensities...')
-Gw_true = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_l_true, axes=(2,0)), w_r_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
+Gw_true = cp.tensordot(cp.tensordot(cp.tensordot(cp.tensordot(G, w_l_true, axes=(2,0)), w_r_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
 
+# Move G and I_data to CPU
+G = G.get()
+I_data = I_data.get()
+
 # plot intensities
 plt.figure()
 plt.imshow(I_data.T,
-           extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
+           extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
            norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
 plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
 plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
@@ -177,10 +165,10 @@ xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("Optimized distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(l, w_l_opt * 100) # x100 to percent
-ax[0,1].plot(r, w_r_opt * 100) # x100 to percent
-ax[1,0].plot(theta, w_theta_opt * 100) # x100 to percent
-ax[1,1].plot(phi, w_phi_opt * 100) # x100 to percent
+ax[0,0].plot(l.get(), w_l_opt * 100) # x100 to percent
+ax[0,1].plot(r.get(), w_r_opt * 100) # x100 to percent
+ax[1,0].plot(theta.get(), w_theta_opt * 100) # x100 to percent
+ax[1,1].plot(phi.get(), w_phi_opt * 100) # x100 to percent
 ax[0,0].set_xlabel(r"Length $l$ ($\AA$)")
 ax[0,1].set_xlabel(r"Radius $r$ ($\AA$)")
 ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
