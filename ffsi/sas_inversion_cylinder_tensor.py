@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.cylinder import G_cylinder
+from ffsi.models.numpy.cylinder import G_cylinder
 from ffsi.optimize_cylinder_galahad_tensor import tt_optimize
 
 # for plotting
@@ -131,27 +131,11 @@ print('xi_true: %.2e' % xi_true)
 # Compute true G
 print('\nComputing full G tensor...')
 dims = (nqx,nqy,nl,nr,ntheta,nphi)
-G = np.zeros(dims)
-for iqx in range(nqx):
-    print('  progress at iqx %d out of %d' % (iqx+1,nqx))
-    for iqy in range(nqy):
-        for il in range(nl):
-            for ir in range(nr):
-                for it in range(ntheta):
-                    for ip in range(nphi):
-                        G[iqx,iqy,il,ir,it,ip] = G_cylinder(qx[iqx], qy[iqy], l[il], r[ir], theta[it], phi[ip], drho)
+G = G_cylinder(qx, qy, l, r, theta, phi, drho)
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')
-Gw_true = np.zeros((nqx,nqy))
-for iqx in range(nqx):
-    print('  progress at iqx %d out of %d' % (iqx+1,nqx))
-    for iqy in range(nqy):
-        for il in range(nl):
-            for ir in range(nr):
-                for it in range(ntheta):
-                    for ip in range(nphi):
-                        Gw_true[iqx,iqy] += G[iqx,iqy,il,ir,it,ip] * w_l_true[il] * w_r_true[ir] * w_theta_true[it] * w_phi_true[ip]
+Gw_true = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_l_true, axes=(2,0)), w_r_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true

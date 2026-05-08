@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.ellipsoid import G_ellipsoid
+from ffsi.models.numpy.ellipsoid import G_ellipsoid
 from ffsi.optimize_ellipsoid_galahad_tensor import tt_optimize
 
 # for plotting
@@ -131,27 +131,11 @@ print('xi_true: %.2e' % xi_true)
 # Compute true G
 print('\nComputing full G tensor...')
 dims = (nqx,nqy,nrp,nre,ntheta,nphi)
-G = np.zeros(dims)
-for iqx in range(nqx):
-    print('  progress at iqx %d out of %d' % (iqx+1,nqx))
-    for iqy in range(nqy):
-        for irp in range(nrp):
-            for ire in range(nre):
-                for it in range(ntheta):
-                    for ip in range(nphi):
-                        G[iqx,iqy,irp,ire,it,ip] = G_ellipsoid(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho)
+G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')
-Gw_true = np.zeros((nqx,nqy))
-for iqx in range(nqx):
-    print('  progress at iqx %d out of %d' % (iqx+1,nqx))
-    for iqy in range(nqy):
-        for irp in range(nrp):
-            for ire in range(nre):
-                for it in range(ntheta):
-                    for ip in range(nphi):
-                        Gw_true[iqx,iqy] += G[iqx,iqy,irp,ire,it,ip] * w_rp_true[irp] * w_re_true[ire] * w_theta_true[it] * w_phi_true[ip]
+Gw_true = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp_true, axes=(2,0)), w_re_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
