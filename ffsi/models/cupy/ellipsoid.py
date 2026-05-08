@@ -32,7 +32,7 @@ def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
     # ellipsoid scattering amplitude
     qa_re = cp.moveaxis(qa[:,:,:,:,None] * re[None,None,None,None,:], 4, 2)
     qc_rp = cp.moveaxis(qc[:,:,:,:,None] * rp[None,None,None,None,:], 4, 2)
-    qr = cp.sqrt(cp.square(qa_re)[:,:,None,:,:,:] + cp.square(qc_rp)[:,:,:,None,:,:])
+    qr = cp.sqrt((qa_re ** 2)[:,:,None,:,:,:] + (qc_rp ** 2)[:,:,:,None,:,:])
 
     F = 3 * V[None,None,:,:,None,None] * drho * (cp.sin(qr) - qr * cp.cos(qr)) / qr ** 3
 
