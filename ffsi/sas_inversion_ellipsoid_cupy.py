@@ -4,6 +4,7 @@ Free-form SAS Inversion Script for Simulated Ellipsoid Data (using full G tensor
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
+import time
 import cupy as cp
 from ffsi.models.cupy.ellipsoid import G_ellipsoid
 from ffsi.optimize_ellipsoid_galahad_tensor import tt_optimize
@@ -131,7 +132,10 @@ print('xi_true: %.2e' % xi_true)
 # Compute true G
 print('\nComputing full G tensor on GPU...')
 dims = (nqx,nqy,nrp,nre,ntheta,nphi)
+t0 = time.time()
 G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
+t1 = time.time()
+print('G computation time on GPU: %.2f s' % (t1-t0))
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')

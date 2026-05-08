@@ -4,6 +4,7 @@ Free-form SAS Inversion Script for Simulated Cylinder Data (using full G tensor)
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
+import time
 import numpy as np
 from ffsi.models.numpy.cylinder import G_cylinder
 from ffsi.optimize_cylinder_galahad_tensor import tt_optimize
@@ -131,7 +132,10 @@ print('xi_true: %.2e' % xi_true)
 # Compute true G
 print('\nComputing full G tensor on CPU...')
 dims = (nqx,nqy,nl,nr,ntheta,nphi)
+t0 = time.time()
 G = G_cylinder(qx, qy, l, r, theta, phi, drho)
+t1 = time.time()
+print('G computation time on CPU: %.2f s' % (t1-t0))
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')
