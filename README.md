@@ -1,7 +1,7 @@
 # Free-form SAS Inversion for SAXS/SANS
 A package for the free-form inversion of Small Angle Scattering problems arising from X-ray and Neutron sources.
 
-This is an orders of magnitude faster and vastly improved algorithm over that proposed in:
+This is an improved algorithm and implementation over that proposed in:
 https://journals.iucr.org/j/issues/2022/04/00/jl5041/index.html
 
 ## Overview of SAS Inversion
@@ -29,8 +29,6 @@ where $V$ is the particle volume and $\Delta\rho$ the scattering density differe
 - [Cylinder](https://www.sasview.org/docs/user/models/cylinder.html)
 - [Ellipsoid](https://www.sasview.org/docs/user/models/ellipsoid.html)
 
-The intention is that these will be replaced by the form factors provided by SASView in due course.
-
 ### Structure Factors
 The structure factor $S(q)$ describes inter-particle interactions in a sample, complementing the single-particle form factor $P(q)$ to determine the total scattering intensity via
 ```math
@@ -41,12 +39,3 @@ revealing particle arrangements beyond just size and shape, where $c$ is the par
 This repository currently contains the structure factors for:
 
 - [Hard Sphere](https://www.sasview.org/docs/user/models/hardsphere.html)
-
-The intention is that these will be replaced by the structure factors provided by SASView in due course.
-
-## Tensor Trains
-We construct a low-rank representation of the form factor using the tensor-train decomposition, given by
-```math
-T_{i1,i2,i3,i4} = \sum_{\alpha_1,\alpha_2,\alpha_3} G_{i1}^{\alpha_1} G_{i2}^{\alpha_1,\alpha_2} G_{i3}^{\alpha_2,\alpha_3} G_{i4}^{\alpha_3}
-```
-For more details please see https://tensornetwork.org/mps/
