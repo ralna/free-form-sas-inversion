@@ -146,8 +146,9 @@ t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 
 # compute Gw_true for simulating the intensities
-print('\nComputing Gw for simulating the intensities...')
+print('\nComputing Gw for simulating the intensities...', end='')
 Gw_true = cp.tensordot(cp.tensordot(cp.tensordot(cp.tensordot(G, w_rp_true, axes=(2,0)), w_re_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
+print('done.')
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
@@ -193,4 +194,24 @@ ax[0,0].grid()
 ax[0,1].grid()
 ax[1,0].grid()
 ax[1,1].grid()
+plt.show()
+
+# compute Gw_opt for the optimized intensities
+print('\nComputing Gw for the optimized intensities...', end='')
+import numpy as np
+Gw_opt = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp_opt, axes=(2,0)), w_re_opt, axes=(2,0)), w_theta_opt, axes=(2,0)), w_phi_opt, axes=(2,0))
+print('done.')
+
+# compute model intensities as the intensity data
+I_opt = xi_opt * Gw_opt + b_opt
+
+# plot optimized intensities
+plt.figure()
+plt.imshow(I_opt.T,
+           extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
+           norm=colors.LogNorm(vmin=I_opt.min(), vmax=I_opt.max()))
+plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
+plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
+plt.title(r"Optimized Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
+plt.colorbar()
 plt.show()
