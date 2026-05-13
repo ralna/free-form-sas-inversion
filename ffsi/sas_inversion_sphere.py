@@ -64,13 +64,15 @@ xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
-print('\nComputing full G tensor...')
+print('\nComputing full G tensor...', end='')
 dims = (nq,nr)
 G = G_sphere(q, r, drho)
+print('done.')
 
 # compute Gw_true for simulating the intensities
-print('\nComputing Gw for simulating the intensities...')
+print('\nComputing Gw for simulating the intensities...', end='')
 Gw_true = G @ w_r_true
+print('done.')
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
@@ -91,7 +93,7 @@ plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
 plt.show()
 
 ## Step 2: SAS Inversion with true G
-print("\nStep 3: SAS inversion with true G\n")
+print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
                                    check_residual=True, check_derivative=True,
                                    xi_true=xi_true, b_true=b_true, w_r_true=w_r_true)
@@ -103,4 +105,25 @@ plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
 plt.ylabel(r"Weights $w$ (%)")
+plt.show()
+
+# compute Gw_opt for the optimized intensities
+print('\nComputing Gw for the optimized intensities...', end='')
+Gw_opt = G @ w_r_opt
+print('done.')
+
+# compute model intensities as the intensity data
+I_opt = xi_opt * Gw_opt + b_opt
+
+# plot optimized intensities
+plt.figure()
+plt.grid()
+plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray', marker='o', markerfacecolor='none')
+plt.plot(q, I_opt, color='red', zorder=5)
+plt.xscale('log')
+plt.yscale('log')
+plt.title('Optimized Intensity')
+plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
+plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
+plt.legend(['Fit','Data'])
 plt.show()

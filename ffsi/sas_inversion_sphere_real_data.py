@@ -60,7 +60,7 @@ print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
 
 # plot intensities
 plt.figure()
-plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray')
+plt.errorbar(q.get(), I_data.get(), yerr=I_data_std.get(), ecolor='gray')
 plt.grid()
 plt.xscale('log')
 plt.yscale('log')
@@ -68,6 +68,14 @@ plt.title('Intensity')
 plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
 plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
 plt.show()
+
+# Calculate required memory for G
+print('\nG tensor memory requirements:')
+G_elem = nq * nr
+bits = cp.finfo(cp.dtype(float)).bits
+G_mem = (G_elem * bits) / 8e9
+print(f'G elements: {G_elem:,}')
+print('G memory: %.2f GB' % G_mem)
 
 # Compute true G
 print('\nComputing full G tensor on GPU...')
@@ -77,9 +85,15 @@ G = G_sphere(q, r, drho)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 
+# Move G, I_data, I_data_std, q, r to CPU
+G = G.get()
+I_data = I_data.get()
+I_data_std = I_data_std.get()
+q = q.get()
+r = r.get()
 
 ## Step 2: SAS Inversion with true G
-print("\nStep 3: SAS inversion with true G\n")
+print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25)
 
 # plot optimized distributions
@@ -92,4 +106,25 @@ plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
 plt.ylabel(r"Volume weight $\hat{w}$ (%)")
+plt.show()
+
+# compute Gw_opt for the optimized intensities
+print('\nComputing Gw for the optimized intensities...', end='')
+Gw_opt = G @ w_r_opt
+print('done.')
+
+# compute model intensities as the intensity data
+I_opt = xi_opt * Gw_opt + b_opt
+
+# plot optimized intensities
+plt.figure()
+plt.grid()
+plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray', marker='o', markerfacecolor='none')
+plt.plot(q, I_opt, color='red', zorder=5)
+plt.xscale('log')
+plt.yscale('log')
+plt.title('Optimized Intensity')
+plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
+plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
+plt.legend(['Fit','Data'])
 plt.show()
