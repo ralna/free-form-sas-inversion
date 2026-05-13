@@ -5,11 +5,8 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.sphere import G_sphere
-from ffsi.tensor_train import tt_approx
+from ffsi.models.numpy.sphere import G_sphere
 from ffsi.optimize_sphere_galahad import tt_optimize
-#from ffsi.optimize_sphere_nonlinear import tt_optimize
-#from ffsi.optimize_sphere_nonlinear_squared import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -43,12 +40,12 @@ print("\nStep 1: Generate ground truth\n")
 # ground truth radii distributions
 gaussian = np.exp(-(r - 500)**2 / (2*10**2))
 boltzmann = 0.7 * np.exp(-np.abs(r - 700) / 20)
-w_true = gaussian + boltzmann
-w_true /= w_true.sum()  # normalize
+w_r_true = gaussian + boltzmann
+w_r_true /= w_r_true.sum()  # normalize
 
 # plot ground truth radii distributions
 plt.figure()
-plt.plot(r, w_true * 100) # x100 to percent
+plt.plot(r, w_r_true * 100) # x100 to percent
 plt.grid()
 plt.title("Ground truth distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
@@ -62,16 +59,18 @@ print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
 V = 4/3 * np.pi * r ** 3 # sphere volume
-V_ave = V @ w_true
+V_ave = V @ w_r_true
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
+# Compute true G
+print('\nComputing full G tensor...')
+dims = (nq,nr)
+G = G_sphere(q, r, drho)
+
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')
-Gw_true = np.zeros(nq)
-for iq in range(nq):
-    for ir in range(nr):
-        Gw_true[iq] += G_sphere(q[iq], r[ir], drho) * w_true[ir]
+Gw_true = G @ w_r_true
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
@@ -91,43 +90,15 @@ plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
 plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
 plt.show()
 
-## Step 2: Approximate Green's function
-print("\nStep 2: Approximate Green's function\n")
-
-# function for cross-interpolation
-dims = (nq,nr)
-G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
-
-# form low-rank TT-representation
-tt = tt_approx(G_func, dims, tol=1e-10, compute_true_error=True)
-
-# FIXME: this is just for plotting the singular values
-print('\nForming G for singular value computation...')
-# form Green's function tensor
-G = np.zeros((nq,nr))
-for iq in range(nq):
-    for ir in range(nr):
-        G[iq,ir] = G_sphere(q[iq], r[ir], drho)
-
-# plot singular values of G
-s = np.linalg.svd(G, compute_uv=False)
-plt.figure()
-plt.semilogy(s/s[0])
-plt.grid()
-plt.title("Singular Value Decay")
-plt.xlabel('Singular Value Index')
-plt.ylabel('Normalised Singular Value')
-plt.show()
-
-## Step 3: SAS Inversion with low-rank G
-print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
+## Step 2: SAS Inversion with true G
+print("\nStep 3: SAS inversion with true G\n")
+xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
                                    check_residual=True, check_derivative=True,
-                                   xi_true=xi_true, b_true=b_true, w_r_true=w_true)
+                                   xi_true=xi_true, b_true=b_true, w_r_true=w_r_true)
 
 # plot optimized distributions
 plt.figure()
-plt.plot(r, w_opt * 100) # x100 to percent
+plt.plot(r, w_r_opt * 100) # x100 to percent
 plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")

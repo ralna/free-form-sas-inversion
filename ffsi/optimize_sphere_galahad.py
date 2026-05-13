@@ -2,7 +2,7 @@
 Free-form SAS Optimization Interface (Sphere version)
 
 Mandatory Parameters:
-tt - xfac tensor train
+G - Green's function
 dims - dimensions of each Green's tensor index
 I_data - intensity data
 I_data_std - error on intensity data
@@ -22,10 +22,7 @@ w_r_opt - optimal w_r
 
 Example usage:
 
-dims = (nq,nr)
-G_func = lambda inds: G_sphere(q[inds[0]], r[inds[1]], drho)
-tt = tt_approx(G_func, dims)
-xi_opt, b_opt, w_opt = tt_optimize(tt, dims, I_data, I_data_std)
+xi_opt, b_opt, w_opt = tt_optimize(G, dims, I_data, I_data_std)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
@@ -36,19 +33,18 @@ from galahad import snls
 from scipy.optimize._numdiff import approx_derivative
 
 
-def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
+def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
                 check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_r_true=None):
 
     # TODO: this is very special case for sphere
     nq, nr = dims
-    core_q, core_r = tt.core
 
     # w0 is uniform distribution
     w_r_0 = np.ones(nr) / nr
 
     # this averages out G over the parameters
     # TODO: this is special case as the r core is the last core
-    G_ave = (core_q[0,:] @ np.sum(core_r[:,:,0], axis=1)) / nr
+    G_ave = np.sum(G, axis=1) / nr
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
@@ -82,7 +78,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
         w_r = x[2:] # in [0,1]
 
         # form Gw (the form factor)
-        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
+        Gw = G @ w_r
 
         # intensity from forward model
         I_model = xi * Gw + b
@@ -90,13 +86,15 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
         # intensity misfit
         eps = (I_model - I_data) / I_data_std
 
-        # regularisation term sigma(w[i+1]-w[i])
-        reg = sigma * np.diff(w_r)
-
-        return np.hstack((eps,reg))
+        # handle regularization
+        if sigma is None: # no regularization
+            return eps
+        else: # regularisation term sigma(w[i+1]-w[i])
+            reg = sigma * np.diff(w_r)
+            return np.hstack((eps,reg))
 
     # form Jacobian
-    # TODO: this is special case as the r core is the last core
+    # TODO: this is special case
     def eval_Jr(x):
 
         # extract variables and unscale
@@ -104,14 +102,11 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
         w_r = x[2:] # in [0,1]
 
         # form Gw (the form factor)
-        Gw = core_q[0,:,:] @ np.tensordot(core_r[:,:,0], w_r, axes=(1,0))
+        Gw = G @ w_r
 
         # xi and b derivatives
         dxi = (xi_sc *  Gw ) / I_data_std # scaled
         db = b0 / I_data_std # scaled
-
-        # form G
-        G = core_q[0,:,:] @ core_r[:,:,0]
 
         # w derivative
         dw = ( xi * G ) / I_data_std[:,np.newaxis]
@@ -119,11 +114,13 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
         # intensity misfit derivative (flattened)
         deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw)).flatten()
 
-        # regularization term derivative (sparse)
-        dreg1 = sigma * np.ones(nr-1)  # w[i+1] term
-        dreg2 = -sigma * np.ones(nr-1) # -w[i] term
-
-        return np.hstack((deps,dreg1,dreg2))
+        # handle regularization
+        if sigma is None: # no regularization
+            return deps
+        else: # regularization term derivative (sparse)
+            dreg1 = sigma * np.ones(nr-1)  # w[i+1] term
+            dreg2 = -sigma * np.ones(nr-1) # -w[i] term
+            return np.hstack((deps,dreg1,dreg2))
 
     # check residual
     if check_residual:
@@ -159,24 +156,33 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=0.25,
 
     # set GALAHAD SNLS Jacobian info
     Jr_type = 'coordinate'
-    Jr_ne = nq*(2+nr) + 2*(nr-1)
-    # flattened intensity misfit derivative
-    Jr_eps_row = np.tile(np.arange(nq),(2+nr,1)).flatten('F')
-    Jr_eps_col = np.tile(np.arange(2+nr),nq)
-    # sparse sigma(w[i+1]-w[i]) derivative
-    Jr_reg1_row = np.arange(nq,nq+nr-1)
-    Jr_reg1_col = np.arange(3,2+nr) # w[i+1] term
-    Jr_reg2_row = np.arange(nq,nq+nr-1)
-    Jr_reg2_col = np.arange(2,2+nr-1) # -w[i] term
-    # combined derivative
-    Jr_row = np.hstack((Jr_eps_row,Jr_reg1_row,Jr_reg2_row))
-    Jr_col = np.hstack((Jr_eps_col,Jr_reg1_col,Jr_reg2_col))
+    if sigma is None: # no regularization
+        Jr_ne = nq*(2+nr)
+        # flattened intensity misfit derivative
+        Jr_row = np.tile(np.arange(nq),(2+nr,1)).flatten('F')
+        Jr_col = np.tile(np.arange(2+nr),nq)
+    else: # regularization requested
+        Jr_ne = nq*(2+nr) + 2*(nr-1)
+        # flattened intensity misfit derivative
+        Jr_eps_row = np.tile(np.arange(nq),(2+nr,1)).flatten('F')
+        Jr_eps_col = np.tile(np.arange(2+nr),nq)
+        # sparse sigma(w[i+1]-w[i]) derivative
+        Jr_reg1_row = np.arange(nq,nq+nr-1)
+        Jr_reg1_col = np.arange(3,2+nr) # w[i+1] term
+        Jr_reg2_row = np.arange(nq,nq+nr-1)
+        Jr_reg2_col = np.arange(2,2+nr-1) # -w[i] term
+        # combined derivative
+        Jr_row = np.hstack((Jr_eps_row,Jr_reg1_row,Jr_reg2_row))
+        Jr_col = np.hstack((Jr_eps_col,Jr_reg1_col,Jr_reg2_col))
     Jr_ptr_ne = 0
     Jr_ptr = None
 
     # set GALAHAD SNLS cohorts
     n = 2 + nr
-    m_r = nq + nr-1
+    if sigma is None: # no regularization
+        m_r = nq
+    else: # regularization requested
+        m_r = nq + nr-1
     m_c = 1
     cohort = np.hstack((np.array([-1,-1]),np.zeros(nr, dtype=int)))
 

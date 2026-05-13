@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import numpy as np
 from ffsi.models.numpy.cylinder import G_cylinder
-from ffsi.optimize_cylinder_galahad_tensor import tt_optimize
+from ffsi.optimize_cylinder_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt

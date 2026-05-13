@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import numpy as np
 from ffsi.models.numpy.ellipsoid import G_ellipsoid
-from ffsi.optimize_ellipsoid_galahad_tensor import tt_optimize
+from ffsi.optimize_ellipsoid_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt

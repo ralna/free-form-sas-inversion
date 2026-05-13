@@ -16,8 +16,8 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 import cupy as cp
-from ffsi.models.cylinder import G_cylinder as G_cylinder_numpy
-from ffsi.models.cupy.cylinder import G_cylinder as G_cylinder_cupy
+from ffsi.models.serial.ellipsoid import G_ellipsoid as G_ellipsoid_serial
+from ffsi.models.cupy.ellipsoid import G_ellipsoid as G_ellipsoid_cupy
 
 # contrast
 drho = 1
@@ -72,7 +72,7 @@ for iqx in range(nqx):
             for ire in range(nre):
                 for it in range(ntheta):
                     for ip in range(nphi):
-                        G[iqx,iqy,irp,ire,it,ip] = G_cylinder_numpy(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho)
+                        G[iqx,iqy,irp,ire,it,ip] = G_ellipsoid_serial(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho)
 
 # move data to GPU (for testing, normally would be formed on GPU)
 qx_gpu = cp.asarray(qx)
@@ -84,7 +84,7 @@ phi_gpu = cp.asarray(phi)
 
 # form Green's function tensor on GPU
 print('\nForming G in parallel on GPU...')
-G_gpu = G_cylinder_cupy(qx_gpu, qy_gpu, rp_gpu, re_gpu, theta_gpu, phi_gpu, drho)
+G_gpu = G_ellipsoid_cupy(qx_gpu, qy_gpu, rp_gpu, re_gpu, theta_gpu, phi_gpu, drho)
 
 # move to CPU for error comparison
 G_cpu = G_gpu.get()

@@ -1,12 +1,11 @@
 """
-Free-form SAS Inversion Script for Simulated Ellipsoid Data
+Free-form SAS Inversion Script for Simulated Ellipsoid Data (using full G tensor)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.ellipsoid import G_ellipsoid
-from ffsi.tensor_train import tt_approx
+from ffsi.models.numpy.ellipsoid import G_ellipsoid
 from ffsi.optimize_ellipsoid_galahad import tt_optimize
 
 # for plotting
@@ -129,18 +128,14 @@ V_ave = w_rp_true.T @ V @ w_re_true
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
+# Compute true G
+print('\nComputing full G tensor...')
+dims = (nqx,nqy,nrp,nre,ntheta,nphi)
+G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
+
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...')
-Gw_true = np.zeros((nqx,nqy))
-for iqx in range(nqx):
-    print('  progress at iqx %d out of %d' % (iqx+1,nqx))
-    for iqy in range(nqy):
-        for irp in range(nrp):
-            for ire in range(nre):
-                for it in range(ntheta):
-                    for ip in range(nphi):
-                        Gw_true[iqx,iqy] += G_ellipsoid(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho) \
-                                            * w_rp_true[irp] * w_re_true[ire] * w_theta_true[it] * w_phi_true[ip]
+Gw_true = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp_true, axes=(2,0)), w_re_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
 
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
@@ -156,19 +151,9 @@ plt.title(r"Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
 plt.colorbar()
 plt.show()
 
-## Step 2: Approximate Green's function
-print("\nStep 2: Approximate Green's function\n")
-
-# function for cross-interpolation
-dims = (nqx,nqy,nrp,nre,ntheta,nphi)
-G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
-
-# form low-rank TT-representation
-tt = tt_approx(G_func, dims, tol=1e-10, max_rank=500, compute_true_error=False)
-
-## Step 3: SAS Inversion with low-rank G
-print("\nStep 3: SAS inversion with low-rank G\n")
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data, sigma=None,
+## Step 2: SAS Inversion with true G
+print("\nStep 2: SAS inversion with true G\n")
+xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None,
                                                                         check_residual=False, check_derivative=False, xi_true=xi_true, b_true=b_true,
                                                                         w_rp_true=w_rp_true, w_re_true=w_re_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
 

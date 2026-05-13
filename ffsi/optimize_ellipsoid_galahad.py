@@ -2,7 +2,7 @@
 Free-form SAS Optimization Interface (Ellipsoid version)
 
 Mandatory Parameters:
-tt - xfac tensor train
+G - Green's function
 dims - dimensions of each Green's tensor index
 I_data - intensity data
 I_data_std - error on intensity data
@@ -20,10 +20,7 @@ w_phi_opt - optimal w_phi
 
 Example usage:
 
-dims = (nqx,nqy,nrp,nre,ntheta,nphi)
-G_func = lambda inds: G_ellipsoid(qx[inds[0]], qy[inds[1]], rp[inds[2]], re[inds[3]], theta[inds[4]], phi[inds[5]], drho)
-tt = tt_approx(G_func, dims)
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(tt, dims, I_data, I_data_std)
+xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data_std)
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
@@ -35,13 +32,12 @@ from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
+def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
                 check_residual=False, check_derivative=False, xi_true=None, b_true=None,
                 w_rp_true=None, w_re_true=None, w_theta_true=None, w_phi_true=None):
 
     # TODO: this is very special case for ellipsoid
     nqx, nqy, nrp, nre, ntheta, nphi = dims
-    core_qx, core_qy, core_rp, core_re, core_theta, core_phi = tt.core
 
     # w0 are uniform distributions
     w_rp_0 = np.ones(nrp) / nrp
@@ -51,11 +47,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
 
     # this averages out G over the parameters
     # TODO: this is special case
-    G_ave = (np.tensordot(core_qx[0,:,:], core_qy, axes=(1,0)) \
-             @ np.sum(core_rp, axis=1) \
-             @ np.sum(core_re, axis=1) \
-             @ np.sum(core_theta, axis=1) \
-             @ np.sum(core_phi[:,:,0], axis=1)) / (nrp*nre*ntheta*nphi)
+    G_ave = np.sum(G, axis=(2,3,4,5)) / (nrp*nre*ntheta*nphi)
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
@@ -91,12 +83,7 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
         w_theta = x[2+nrp+nre:2+nrp+nre+ntheta] # in [0,1]
         w_phi = x[2+nrp+nre+ntheta:] # in [0,1]
 
-        # form Gw (the form factor)
-        Gw = np.tensordot(core_qx[0,:,:], core_qy, axes=(1,0)) \
-            @ np.tensordot(core_rp, w_rp, axes=(1,0)) \
-            @ np.tensordot(core_re, w_re, axes=(1,0)) \
-            @ np.tensordot(core_theta, w_theta, axes=(1,0)) \
-            @ np.tensordot(core_phi[:,:,0], w_phi, axes=(1,0))
+        Gw = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0)), w_phi, axes=(2,0))
 
         # intensity from forward model
         I_model = xi * Gw + b
@@ -125,36 +112,27 @@ def tt_optimize(tt, dims, I_data, I_data_std, sigma=1e-5,
         w_theta = x[2+nrp+nre:2+nrp+nre+ntheta] # in [0,1]
         w_phi = x[2+nrp+nre+ntheta:] # in [0,1]
 
-        # form Gq matrix and compress parameter cores
-        Gq = np.tensordot(core_qx[0,:,:], core_qy, axes=(1,0))
-        Gw_rp = np.tensordot(core_rp, w_rp, axes=(1,0))
-        Gw_re = np.tensordot(core_re, w_re, axes=(1,0))
-        Gw_theta = np.tensordot(core_theta, w_theta, axes=(1,0))
-        Gw_phi = np.tensordot(core_phi[:,:,0], w_phi, axes=(1,0))
-
         # form Gw (the form factor)
-        Gw = Gq @ Gw_rp @ Gw_re @ Gw_theta @ Gw_phi
+        Gw = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0)), w_phi, axes=(2,0))
 
         # xi and b derivatives
         dxi = (xi_sc *  Gw ) / I_data_std # scaled
         db = b_sc / I_data_std # scaled
 
         # w_rp derivative
-        Gw_dwrp = np.tensordot(Gq, core_rp, axes=(-1,0)) @ Gw_re @ Gw_theta @ Gw_phi
+        Gw_dwrp = np.tensordot(np.tensordot(np.tensordot(G, w_re, axes=(3,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
         dwrp = ( xi * Gw_dwrp ) / I_data_std[:,:,np.newaxis]
 
         # w_re derivative
-        # TODO: cleaner nested tensor product syntax
-        Gw_dwre = np.tensordot(Gq, np.tensordot(Gw_rp, core_re, axes=(-1,0)), axes=(-1,0)) @ Gw_theta @ Gw_phi
+        Gw_dwre = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
         dwre = ( xi * Gw_dwre ) / I_data_std[:,:,np.newaxis]
 
         # w_theta derivative
-        # TODO: much cleaner nested tensor product syntax
-        Gw_dwt = np.tensordot(Gq, np.tensordot(Gw_rp, np.tensordot(Gw_re, core_theta, axes=(-1,0)), axes=(-1,0)), axes=(-1,0)) @ Gw_phi
+        Gw_dwt = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_phi, axes=(3,0))
         dwt = ( xi * Gw_dwt ) / I_data_std[:,:,np.newaxis]
 
         # w_phi derivative
-        Gw_dwp = Gq @ Gw_rp @ Gw_re @ Gw_theta @ core_phi[:,:,0]
+        Gw_dwp = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0))
         dwp = ( xi * Gw_dwp ) / I_data_std[:,:,np.newaxis]
 
         # flatten arrays in q

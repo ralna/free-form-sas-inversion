@@ -12,7 +12,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 import cupy as cp
-from ffsi.models.sphere import G_sphere as G_sphere_numpy
+from ffsi.models.serial.sphere import G_sphere as G_sphere_serial
 from ffsi.models.cupy.sphere import G_sphere as G_sphere_cupy
 
 # contrast
@@ -40,7 +40,7 @@ print('\nForming G in serial on CPU...')
 G = np.zeros((nq,nr))
 for iq in range(nq):
     for ir in range(nr):
-        G[iq,ir] = G_sphere_numpy(q[iq], r[ir], drho)
+        G[iq,ir] = G_sphere_serial(q[iq], r[ir], drho)
 
 # move data to GPU (for testing, normally would be formed on GPU)
 q_gpu = cp.asarray(q)

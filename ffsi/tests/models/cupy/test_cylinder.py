@@ -16,7 +16,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 import cupy as cp
-from ffsi.models.cylinder import G_cylinder as G_cylinder_numpy
+from ffsi.models.serial.cylinder import G_cylinder as G_cylinder_serial
 from ffsi.models.cupy.cylinder import G_cylinder as G_cylinder_cupy
 
 # contrast
@@ -72,7 +72,7 @@ for iqx in range(nqx):
             for ir in range(nr):
                 for it in range(ntheta):
                     for ip in range(nphi):
-                        G[iqx,iqy,il,ir,it,ip] = G_cylinder_numpy(qx[iqx], qy[iqy], l[il], r[ir], theta[it], phi[ip], drho)
+                        G[iqx,iqy,il,ir,it,ip] = G_cylinder_serial(qx[iqx], qy[iqy], l[il], r[ir], theta[it], phi[ip], drho)
 
 # move data to GPU (for testing, normally would be formed on GPU)
 qx_gpu = cp.asarray(qx)
