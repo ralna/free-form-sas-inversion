@@ -1,5 +1,5 @@
 """
-Free-form SAS Inversion Script for Simulated Ellipsoid Data (using full G tensor)
+Free-form SAS Inversion Script for Simulated Ellipsoid Data
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
