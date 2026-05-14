@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import cupy as cp
 from ffsi.models.cupy.ellipsoid import G_ellipsoid
-from ffsi.optimize_ellipsoid_galahad import tt_optimize
+from ffsi.optimize_ellipsoid_galahad_cupy import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -153,13 +153,9 @@ print('done.')
 # compute model intensities as the intensity data
 I_data = xi_true * Gw_true + b_true
 
-# Move G and I_data to CPU
-G = G.get()
-I_data = I_data.get()
-
 # plot intensities
 plt.figure()
-plt.imshow(I_data.T,
+plt.imshow(I_data.T.get(),
            extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
            norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
 plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
@@ -170,9 +166,7 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None,
-                                                                      check_residual=False, check_derivative=False, xi_true=xi_true, b_true=b_true,
-                                                                      w_rp_true=w_rp_true, w_re_true=w_re_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
+xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
@@ -196,9 +190,14 @@ ax[1,0].grid()
 ax[1,1].grid()
 plt.show()
 
+# Transfer optimized distributions to GPU
+w_rp_opt = cp.asarray(w_rp_opt)
+w_re_opt = cp.asarray(w_re_opt)
+w_theta_opt = cp.asarray(w_theta_opt)
+w_phi_opt = cp.asarray(w_phi_opt)
+
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-import numpy as np
 Gw_opt = (((G @ w_phi_opt) @ w_theta_opt) @ w_re_opt) @ w_rp_opt
 print('done.')
 
@@ -207,7 +206,7 @@ I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
 plt.figure()
-plt.imshow(I_opt.T,
+plt.imshow(I_opt.T.get(),
            extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
            norm=colors.LogNorm(vmin=I_opt.min(), vmax=I_opt.max()))
 plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")

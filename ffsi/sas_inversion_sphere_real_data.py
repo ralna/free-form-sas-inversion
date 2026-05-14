@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import cupy as cp
 from ffsi.models.cupy.sphere import G_sphere
-from ffsi.optimize_sphere_galahad import tt_optimize
+from ffsi.optimize_sphere_galahad_cupy import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -85,23 +85,19 @@ G = G_sphere(q, r, drho)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 
-# Move G, I_data, I_data_std, q, r to CPU
-G = G.get()
-I_data = I_data.get()
-I_data_std = I_data_std.get()
-q = q.get()
-r = r.get()
-
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25)
+
+# Transfer optimized distributions to GPU
+w_r_opt = cp.asarray(w_r_opt)
 
 # plot optimized distributions
 plt.figure()
 v = r ** 3 # volume
 w_r_hat = w_r_opt * v / (w_r_opt * v).sum() * 100  # x100 to percent
 cmap = plt.get_cmap('turbo_r') # colormap
-plt.plot(r, w_r_hat, c=cmap(0.0))
+plt.plot(r.get(), w_r_hat.get(), c=cmap(0.0))
 plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
@@ -119,8 +115,8 @@ I_opt = xi_opt * Gw_opt + b_opt
 # plot optimized intensities
 plt.figure()
 plt.grid()
-plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray', marker='o', markerfacecolor='none')
-plt.plot(q, I_opt, color='red', zorder=5)
+plt.errorbar(q.get(), I_data.get(), yerr=I_data_std.get(), ecolor='gray', marker='o', markerfacecolor='none')
+plt.plot(q.get(), I_opt.get(), color='red', zorder=5)
 plt.xscale('log')
 plt.yscale('log')
 plt.title('Optimized Intensity')
