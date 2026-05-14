@@ -147,7 +147,7 @@ print('G computation time on CPU: %.2f s' % (t1-t0))
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...', end='')
-Gw_true = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp_true, axes=(2,0)), w_re_true, axes=(2,0)), w_theta_true, axes=(2,0)), w_phi_true, axes=(2,0))
+Gw_true = (((G @ w_phi_true) @ w_theta_true) @ w_re_true) @ w_rp_true
 print('done.')
 
 # compute model intensities as the intensity data
@@ -194,7 +194,7 @@ plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp_opt, axes=(2,0)), w_re_opt, axes=(2,0)), w_theta_opt, axes=(2,0)), w_phi_opt, axes=(2,0))
+Gw_opt = (((G @ w_phi_opt) @ w_theta_opt) @ w_re_opt) @ w_rp_opt
 print('done.')
 
 # compute model intensities as the intensity data

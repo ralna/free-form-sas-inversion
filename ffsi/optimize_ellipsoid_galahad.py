@@ -83,7 +83,7 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
         w_theta = x[2+nrp+nre:2+nrp+nre+ntheta] # in [0,1]
         w_phi = x[2+nrp+nre+ntheta:] # in [0,1]
 
-        Gw = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0)), w_phi, axes=(2,0))
+        Gw = (((G @ w_phi) @ w_theta) @ w_re) @ w_rp
 
         # intensity from forward model
         I_model = xi * Gw + b
@@ -113,7 +113,7 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
         w_phi = x[2+nrp+nre+ntheta:] # in [0,1]
 
         # form Gw (the form factor)
-        Gw = np.tensordot(np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0)), w_phi, axes=(2,0))
+        Gw = (((G @ w_phi) @ w_theta) @ w_re) @ w_rp
 
         # xi and b derivatives
         dxi = (xi_sc *  Gw ) / I_data_std # scaled
