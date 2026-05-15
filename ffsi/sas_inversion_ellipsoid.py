@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.numpy.ellipsoid import G_ellipsoid
+from ffsi.models.ellipsoid import G_ellipsoid
 from ffsi.optimize_ellipsoid_galahad import tt_optimize
 
 # for plotting

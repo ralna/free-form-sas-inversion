@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.numpy.cylinder import G_cylinder
+from ffsi.models.cylinder import G_cylinder
 from ffsi.optimize_cylinder_galahad import tt_optimize
 
 # for plotting

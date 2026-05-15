@@ -17,7 +17,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 import cupy as cp
 from ffsi.models.serial.ellipsoid import G_ellipsoid as G_ellipsoid_serial
-from ffsi.models.cupy.ellipsoid import G_ellipsoid as G_ellipsoid_cupy
+from ffsi.models.ellipsoid import G_ellipsoid as G_ellipsoid_cupy
 
 # contrast
 drho = 1

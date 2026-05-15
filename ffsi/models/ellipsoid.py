@@ -18,23 +18,27 @@ import cupy as cp
 
 def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
 
+    # use CPU or GPU as appropriate
+    xp = cp.get_array_module(qx, qy, rp, re, theta, phi, drho)
+    print("\n (using " + xp.__name__ + " for G computation)")
+
     # ellipsoid volume
-    V = 4/3 * cp.pi * rp[:,None] * re[None,:] ** 2
+    V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2
 
     # coordinate transformation
-    sint_cosp = cp.outer(cp.sin(theta), cp.cos(phi))
-    sint_sinp = cp.outer(cp.sin(theta), cp.sin(phi))
+    sint_cosp = xp.outer(xp.sin(theta), xp.cos(phi))
+    sint_sinp = xp.outer(xp.sin(theta), xp.sin(phi))
     qc = (qx[:,None,None] * sint_cosp[None,:,:])[:,None,:,:] + \
          (qy[:,None,None] * sint_sinp[None,:,:])[None,:,:,:]
-    qa = cp.sqrt((qx ** 2)[:,None,None,None] +
+    qa = xp.sqrt((qx ** 2)[:,None,None,None] +
                  (qy ** 2)[None,:,None,None] - qc ** 2)
 
     # ellipsoid scattering amplitude
-    qa_re = cp.moveaxis(qa[:,:,:,:,None] * re[None,None,None,None,:], 4, 2)
-    qc_rp = cp.moveaxis(qc[:,:,:,:,None] * rp[None,None,None,None,:], 4, 2)
-    qr = cp.sqrt((qa_re ** 2)[:,:,None,:,:,:] + (qc_rp ** 2)[:,:,:,None,:,:])
+    qa_re = xp.moveaxis(qa[:,:,:,:,None] * re[None,None,None,None,:], 4, 2)
+    qc_rp = xp.moveaxis(qc[:,:,:,:,None] * rp[None,None,None,None,:], 4, 2)
+    qr = xp.sqrt((qa_re ** 2)[:,:,None,:,:,:] + (qc_rp ** 2)[:,:,:,None,:,:])
 
-    F = 3 * V[None,None,:,:,None,None] * drho * (cp.sin(qr) - qr * cp.cos(qr)) / qr ** 3
+    F = 3 * V[None,None,:,:,None,None] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
 
     # Green's function
     return F ** 2

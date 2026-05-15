@@ -13,7 +13,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 import cupy as cp
 from ffsi.models.serial.sphere import G_sphere as G_sphere_serial
-from ffsi.models.cupy.sphere import G_sphere as G_sphere_cupy
+from ffsi.models.sphere import G_sphere as G_sphere_cupy
 
 # contrast
 drho = 1

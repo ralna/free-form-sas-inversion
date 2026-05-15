@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.numpy.sphere import G_sphere
+from ffsi.models.sphere import G_sphere
 from ffsi.optimize_sphere_galahad import tt_optimize
 
 # for plotting

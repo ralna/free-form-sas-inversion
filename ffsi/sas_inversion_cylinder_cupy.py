@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models.cupy.cylinder import G_cylinder
+from ffsi.models.cylinder import G_cylinder
 from ffsi.optimize_cylinder_galahad_cupy import tt_optimize
 
 # for plotting

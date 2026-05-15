@@ -10,16 +10,20 @@ drho - difference between scattering length densities
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import numpy as np
+import cupy as cp
 
 def G_sphere(q, r, drho):
 
+    # use CPU or GPU as appropriate
+    xp = cp.get_array_module(q, r, drho)
+    print("\n (using " + xp.__name__ + " for G computation)")
+
     # sphere volume
-    V = 4/3 * np.pi * r ** 3
+    V = 4/3 * xp.pi * r ** 3
 
     # sphere scattering amplitude
-    qr = np.outer(q, r)
-    F = 3 * V[None,:] * drho * (np.sin(qr) - qr * np.cos(qr)) / qr ** 3
+    qr = xp.outer(q, r)
+    F = 3 * V[None,:] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
 
     # Green's function
     return F ** 2

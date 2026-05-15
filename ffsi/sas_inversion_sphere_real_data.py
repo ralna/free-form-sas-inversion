@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models.cupy.sphere import G_sphere
+from ffsi.models.sphere import G_sphere
 from ffsi.optimize_sphere_galahad_cupy import tt_optimize
 
 # for plotting

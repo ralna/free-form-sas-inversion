@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models.cupy.ellipsoid import G_ellipsoid
+from ffsi.models.ellipsoid import G_ellipsoid
 from ffsi.optimize_ellipsoid_galahad_cupy import tt_optimize
 
 # for plotting

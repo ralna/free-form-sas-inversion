@@ -17,7 +17,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 import cupy as cp
 from ffsi.models.serial.cylinder import G_cylinder as G_cylinder_serial
-from ffsi.models.cupy.cylinder import G_cylinder as G_cylinder_cupy
+from ffsi.models.cylinder import G_cylinder as G_cylinder_cupy
 
 # contrast
 drho = 1
