@@ -64,7 +64,7 @@ xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
-print('\nComputing full G tensor...', end='')
+print('\nComputing full G tensor...')
 dims = (nq,nr)
 G = G_sphere(q, r, drho)
 print('done.')
@@ -94,9 +94,7 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
-                                   check_residual=True, check_derivative=True,
-                                   xi_true=xi_true, b_true=b_true, w_r_true=w_r_true)
+xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25)
 
 # plot optimized distributions
 plt.figure()

@@ -16,7 +16,7 @@ def G_sphere(q, r, drho):
 
     # use CPU or GPU as appropriate
     xp = cp.get_array_module(q, r, drho)
-    print("\n (using " + xp.__name__ + " for G computation)")
+    print("(using " + xp.__name__ + " for G computation)")
 
     # sphere volume
     V = 4/3 * xp.pi * r ** 3

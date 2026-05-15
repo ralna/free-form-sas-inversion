@@ -20,7 +20,7 @@ def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
 
     # use CPU or GPU as appropriate
     xp = cp.get_array_module(qx, qy, rp, re, theta, phi, drho)
-    print("\n (using " + xp.__name__ + " for G computation)")
+    print("(using " + xp.__name__ + " for G computation)")
 
     # ellipsoid volume
     V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2

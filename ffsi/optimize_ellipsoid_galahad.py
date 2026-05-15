@@ -26,39 +26,40 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
+import cupy as cp
 from galahad import snls
-# for testing the inversion pipeline
-from scipy.optimize._numdiff import approx_derivative
 
 
 # TODO: handle both 1D and 2D intensity data
-def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
-                check_residual=False, check_derivative=False, xi_true=None, b_true=None,
-                w_rp_true=None, w_re_true=None, w_theta_true=None, w_phi_true=None):
+def tt_optimize(G, dims, I_data, I_data_std, sigma=None):
+
+    # use CPU or GPU as appropriate
+    xp = cp.get_array_module(G, dims, I_data, I_data_std)
+    print("(using " + xp.__name__ + " for residual and Jacobian computation)")
 
     # TODO: this is very special case for ellipsoid
     nqx, nqy, nrp, nre, ntheta, nphi = dims
 
     # w0 are uniform distributions
-    w_rp_0 = np.ones(nrp) / nrp
-    w_re_0 = np.ones(nre) / nre
-    w_theta_0 = np.ones(ntheta) / ntheta
-    w_phi_0 = np.ones(nphi) / nphi
+    w_rp_0 = xp.ones(nrp) / nrp
+    w_re_0 = xp.ones(nre) / nre
+    w_theta_0 = xp.ones(ntheta) / ntheta
+    w_phi_0 = xp.ones(nphi) / nphi
 
     # this averages out G over the parameters
     # TODO: this is special case
-    G_ave = np.sum(G, axis=(2,3,4,5)) / (nrp*nre*ntheta*nphi)
+    G_ave = xp.sum(G, axis=(2,3,4,5)) / (nrp*nre*ntheta*nphi)
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
     mu_over_nv = I_data / I_data_std
     one_over_nv = 1 / I_data_std
     G_ave_over_nv = G_ave / I_data_std
-    a11 = np.sum(G_ave_over_nv ** 2)
-    a12 = np.sum(G_ave_over_nv * one_over_nv)
-    a22 = np.sum(one_over_nv ** 2)
-    b1 = np.sum(mu_over_nv * G_ave_over_nv)
-    b2 = np.sum(mu_over_nv * one_over_nv)
+    a11 = xp.sum(G_ave_over_nv ** 2)
+    a12 = xp.sum(G_ave_over_nv * one_over_nv)
+    a22 = xp.sum(one_over_nv ** 2)
+    b1 = xp.sum(mu_over_nv * G_ave_over_nv)
+    b2 = xp.sum(mu_over_nv * one_over_nv)
 
     # solve xi0 and b0 using Cramer's rule
     A = a11 * a22 - a12 * a12
@@ -68,12 +69,15 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
     print('b0: %.2e' % b0)
 
     # determine xi0 and b0 scaling
-    xi_sc = 10 ** np.floor(np.log10(np.abs(xi0)))
-    b_sc = 10 ** np.floor(np.log10(np.abs(b0)))
+    xi_sc = 10 ** xp.floor(xp.log10(xp.abs(xi0)))
+    b_sc = 10 ** xp.floor(xp.log10(xp.abs(b0)))
 
     # form residuals
     # TODO: this is special case
     def eval_r(x):
+
+        # move x to GPU if required
+        x = xp.asarray(x)
 
         # extract variables and unscale
         xi = x[0] * xi_sc
@@ -83,6 +87,7 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
         w_theta = x[2+nrp+nre:2+nrp+nre+ntheta] # in [0,1]
         w_phi = x[2+nrp+nre+ntheta:] # in [0,1]
 
+        # form Gw (the form factor)
         Gw = (((G @ w_phi) @ w_theta) @ w_re) @ w_rp
 
         # intensity from forward model
@@ -93,17 +98,26 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
 
         # handle regularization
         if sigma is None: # no regularization
-            return eps.flatten()
+            res = eps.flatten()
         else: # regularisation terms sigma(w[i+1]-w[i])
-            reg_rp = sigma * np.diff(w_rp)
-            reg_re = sigma * np.diff(w_re)
-            reg_theta = sigma * np.diff(w_theta)
-            reg_phi = sigma * np.diff(w_phi)
-            return np.hstack((eps.flatten(),reg_rp,reg_re,reg_theta,reg_phi))
+            reg_rp = sigma * xp.diff(w_rp)
+            reg_re = sigma * xp.diff(w_re)
+            reg_theta = sigma * xp.diff(w_theta)
+            reg_phi = sigma * xp.diff(w_phi)
+            res = xp.hstack((eps.flatten(),reg_rp,reg_re,reg_theta,reg_phi))
+
+        # move residual to CPU if required
+        if xp.__name__ == 'cupy':
+            return res.get()
+        else:
+            return res
 
     # form Jacobian
     # TODO: this is special case
     def eval_Jr(x):
+
+        # move x to GPU if required
+        x = xp.asarray(x)
 
         # extract variables and unscale
         xi = x[0] * xi_sc
@@ -120,20 +134,20 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
         db = b_sc / I_data_std # scaled
 
         # w_rp derivative
-        Gw_dwrp = np.tensordot(np.tensordot(np.tensordot(G, w_re, axes=(3,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
-        dwrp = ( xi * Gw_dwrp ) / I_data_std[:,:,np.newaxis]
+        Gw_dwrp = xp.tensordot(xp.tensordot(xp.tensordot(G, w_re, axes=(3,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
+        dwrp = ( xi * Gw_dwrp ) / I_data_std[:,:,xp.newaxis]
 
         # w_re derivative
-        Gw_dwre = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
-        dwre = ( xi * Gw_dwre ) / I_data_std[:,:,np.newaxis]
+        Gw_dwre = xp.tensordot(xp.tensordot(xp.tensordot(G, w_rp, axes=(2,0)), w_theta, axes=(3,0)), w_phi, axes=(3,0))
+        dwre = ( xi * Gw_dwre ) / I_data_std[:,:,xp.newaxis]
 
         # w_theta derivative
-        Gw_dwt = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_phi, axes=(3,0))
-        dwt = ( xi * Gw_dwt ) / I_data_std[:,:,np.newaxis]
+        Gw_dwt = xp.tensordot(xp.tensordot(xp.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_phi, axes=(3,0))
+        dwt = ( xi * Gw_dwt ) / I_data_std[:,:,xp.newaxis]
 
         # w_phi derivative
-        Gw_dwp = np.tensordot(np.tensordot(np.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0))
-        dwp = ( xi * Gw_dwp ) / I_data_std[:,:,np.newaxis]
+        Gw_dwp = xp.tensordot(xp.tensordot(xp.tensordot(G, w_rp, axes=(2,0)), w_re, axes=(2,0)), w_theta, axes=(2,0))
+        dwp = ( xi * Gw_dwp ) / I_data_std[:,:,xp.newaxis]
 
         # flatten arrays in q
         dxi = dxi.flatten()
@@ -144,34 +158,27 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
         dwp = dwp.reshape(-1, dwp.shape[-1])
 
         # intensity misfit derivative (flattened)
-        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dwrp,dwre,dwt,dwp)).flatten()
+        deps = xp.hstack((dxi[:,xp.newaxis],db[:,xp.newaxis],dwrp,dwre,dwt,dwp)).flatten()
 
         # handle regularization
         if sigma is None: # no regularization
-            return deps
+            jac = deps
         else: # regularization term derivatives (sparse)
-            dreg_rp1 = sigma * np.ones(nrp-1)
-            dreg_rp2 = -sigma * np.ones(nrp-1)
-            dreg_re1 = sigma * np.ones(nre-1)
-            dreg_re2 = -sigma * np.ones(nre-1)
-            dreg_t1 = sigma * np.ones(ntheta-1)
-            dreg_t2 = -sigma * np.ones(ntheta-1)
-            dreg_p1 = sigma * np.ones(nphi-1)
-            dreg_p2 = -sigma * np.ones(nphi-1)
-            return np.hstack((deps,dreg_rp1,dreg_rp2,dreg_re1,dreg_re2,dreg_t1,dreg_t2,dreg_p1,dreg_p2))
+            dreg_rp1 = sigma * xp.ones(nrp-1)
+            dreg_rp2 = -sigma * xp.ones(nrp-1)
+            dreg_re1 = sigma * xp.ones(nre-1)
+            dreg_re2 = -sigma * xp.ones(nre-1)
+            dreg_t1 = sigma * xp.ones(ntheta-1)
+            dreg_t2 = -sigma * xp.ones(ntheta-1)
+            dreg_p1 = sigma * xp.ones(nphi-1)
+            dreg_p2 = -sigma * xp.ones(nphi-1)
+            jac = xp.hstack((deps,dreg_rp1,dreg_rp2,dreg_re1,dreg_re2,dreg_t1,dreg_t2,dreg_p1,dreg_p2))
 
-    # check residual
-    if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi_sc, b_true/b_sc, w_rp_true, w_re_true, w_theta_true, w_phi_true))
-        eps = np.abs(eval_r(x_true_scaled))
-        print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
-
-    # check derivative
-    if check_derivative:
-        jac1 = eval_Jr(x_true_scaled)
-        jac2 = approx_derivative(eval_r, x_true_scaled) # numdiff derivative
-        ej = np.abs(jac1-jac2.flatten())
-        print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e\n' % (np.min(ej),np.mean(ej),np.max(ej)))
+        # move Jacobian to CPU if required
+        if xp.__name__ == 'cupy':
+            return jac.get()
+        else:
+            return jac
 
     # set GALAHAD SNLS options
     options = snls.initialize()
@@ -190,7 +197,11 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=1e-5,
     options['stop_pg_absolute'] = 1e-7
 
     # form and scale initial optimization variable
-    x0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,w_rp_0,w_re_0,w_theta_0,w_phi_0))
+    x0_scaled = xp.hstack((xi0/xi_sc,b0/b_sc,w_rp_0,w_re_0,w_theta_0,w_phi_0))
+
+    # move initial guess to CPU if required
+    if xp.__name__ == 'cupy':
+        x0_scaled = x0_scaled.get()
 
     # set GALAHAD SNLS Jacobian info
     Jr_type = 'coordinate'

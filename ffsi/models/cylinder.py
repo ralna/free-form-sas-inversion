@@ -22,7 +22,7 @@ def G_cylinder(qx, qy, l, r, theta, phi, drho):
     # use CPU or GPU as appropriate
     xp = cp.get_array_module(qx, qy, l, r, theta, phi, drho)
     xps = cps.get_array_module(qx, qy, l, r, theta, phi, drho)
-    print("\n (using " + xp.__name__ + " and " + xps.__name__ + " for G computation)")
+    print("(using " + xp.__name__ + " and " + xps.__name__ + " for G computation)")
 
     # cylinder volume
     V = xp.pi * l[:,None] * r[None,:] ** 2

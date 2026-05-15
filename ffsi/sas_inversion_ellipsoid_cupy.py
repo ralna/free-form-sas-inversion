@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import cupy as cp
 from ffsi.models.ellipsoid import G_ellipsoid
-from ffsi.optimize_ellipsoid_galahad_cupy import tt_optimize
+from ffsi.optimize_ellipsoid_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -208,9 +208,20 @@ I_opt = xi_opt * Gw_opt + b_opt
 plt.figure()
 plt.imshow(I_opt.T.get(),
            extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
-           norm=colors.LogNorm(vmin=I_opt.min(), vmax=I_opt.max()))
+           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
 plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
 plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
 plt.title(r"Optimized Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
+plt.colorbar()
+plt.show()
+
+# plot intensity misfit
+plt.figure()
+plt.imshow(cp.abs(I_data.T - I_opt.T).get(),
+           extent=(qx[0].get(), qx[-1].get(), qy[0].get(), qy[-1].get()), aspect=1., cmap='turbo',
+           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
+plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
+plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
+plt.title(r"Intensity Misfit ($\mathrm{cm}^{-1})$")
 plt.colorbar()
 plt.show()

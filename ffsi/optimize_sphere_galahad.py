@@ -9,11 +9,6 @@ I_data_std - error on intensity data
 
 Optional Parameters:
 sigma - regularization parameter value
-check_residual - check residual error (slow)
-check_derivative - numerically check Jacobian (slow)
-xi_true - real xi for above checks
-b_true - real b for above checks
-w_r_true - real w_r for above checks
 
 Returns:
 xi_opt - optimal xi
@@ -28,34 +23,36 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
+import cupy as cp
 from galahad import snls
-# for testing the inversion pipeline
-from scipy.optimize._numdiff import approx_derivative
 
 
-def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
-                check_residual=False, check_derivative=False, xi_true=None, b_true=None, w_r_true=None):
+def tt_optimize(G, dims, I_data, I_data_std, sigma=None):
+
+    # use CPU or GPU as appropriate
+    xp = cp.get_array_module(G, dims, I_data, I_data_std)
+    print("(using " + xp.__name__ + " for residual and Jacobian computation)")
 
     # TODO: this is very special case for sphere
     nq, nr = dims
 
     # w0 is uniform distribution
-    w_r_0 = np.ones(nr) / nr
+    w_r_0 = xp.ones(nr) / nr
 
     # this averages out G over the parameters
     # TODO: this is special case as the r core is the last core
-    G_ave = np.sum(G, axis=1) / nr
+    G_ave = xp.sum(G, axis=1) / nr
 
     # and xi0 and b0 can be determined from
     # min [1/sigma * (xi G_ave + b 1 - mu) ]^ 2
     mu_over_nv = I_data / I_data_std
     one_over_nv = 1 / I_data_std
     G_ave_over_nv = G_ave / I_data_std
-    a11 = np.sum(G_ave_over_nv ** 2)
-    a12 = np.sum(G_ave_over_nv * one_over_nv)
-    a22 = np.sum(one_over_nv ** 2)
-    b1 = np.sum(mu_over_nv * G_ave_over_nv)
-    b2 = np.sum(mu_over_nv * one_over_nv)
+    a11 = xp.sum(G_ave_over_nv ** 2)
+    a12 = xp.sum(G_ave_over_nv * one_over_nv)
+    a22 = xp.sum(one_over_nv ** 2)
+    b1 = xp.sum(mu_over_nv * G_ave_over_nv)
+    b2 = xp.sum(mu_over_nv * one_over_nv)
 
     # solve xi0 and b0 using Cramer's rule
     A = a11 * a22 - a12 * a12
@@ -65,12 +62,15 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
     print('b0: %.2e' % b0)
 
     # determine xi0 and b0 scaling
-    xi_sc = 10 ** np.floor(np.log10(np.abs(xi0)))
-    b_sc = 10 ** np.floor(np.log10(np.abs(b0)))
+    xi_sc = 10 ** xp.floor(xp.log10(xp.abs(xi0)))
+    b_sc = 10 ** xp.floor(xp.log10(xp.abs(b0)))
 
     # form residuals
     # TODO: this is special case as the r core is the last core
     def eval_r(x):
+
+        # move x to GPU if required
+        x = xp.asarray(x)
 
         # extract variable scalings
         xi = x[0] * xi_sc
@@ -88,14 +88,23 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
 
         # handle regularization
         if sigma is None: # no regularization
-            return eps
+            res = eps
         else: # regularisation term sigma(w[i+1]-w[i])
-            reg = sigma * np.diff(w_r)
-            return np.hstack((eps,reg))
+            reg = sigma * xp.diff(w_r)
+            res = xp.hstack((eps,reg))
+
+        # move residual to CPU if required
+        if xp.__name__ == 'cupy':
+            return res.get()
+        else:
+            return res
 
     # form Jacobian
     # TODO: this is special case
     def eval_Jr(x):
+
+        # move x to GPU if required
+        x = xp.asarray(x)
 
         # extract variables and unscale
         xi = x[0] * xi_sc
@@ -109,32 +118,24 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
         db = b0 / I_data_std # scaled
 
         # w derivative
-        dw = ( xi * G ) / I_data_std[:,np.newaxis]
+        dw = ( xi * G ) / I_data_std[:,xp.newaxis]
 
         # intensity misfit derivative (flattened)
-        deps = np.hstack((dxi[:,np.newaxis],db[:,np.newaxis],dw)).flatten()
+        deps = xp.hstack((dxi[:,xp.newaxis],db[:,xp.newaxis],dw)).flatten()
 
         # handle regularization
         if sigma is None: # no regularization
-            return deps
+            jac = deps
         else: # regularization term derivative (sparse)
-            dreg1 = sigma * np.ones(nr-1)  # w[i+1] term
-            dreg2 = -sigma * np.ones(nr-1) # -w[i] term
-            return np.hstack((deps,dreg1,dreg2))
+            dreg1 = sigma * xp.ones(nr-1)  # w[i+1] term
+            dreg2 = -sigma * xp.ones(nr-1) # -w[i] term
+            jac = xp.hstack((deps,dreg1,dreg2))
 
-    # check residual
-    if check_residual:
-        x_true_scaled = np.hstack((xi_true/xi_sc, b_true/b0, w_r_true))
-        eps = np.abs(eval_r(x_true_scaled))
-        print('\nResidual value (min,mean,max): %.2e %.2e %.2e' % (np.min(eps),np.mean(eps),np.max(eps)))
-
-    # check derivative
-    if check_derivative:
-        jac1 = eval_Jr(x_true_scaled)
-        jac2 = approx_derivative(eval_r, x_true_scaled) # numdiff derivative
-        jac2 = np.hstack((jac2[:nq,:].flatten(),np.diagonal(jac2[nq:,2:],offset=1)[:1+nr],np.diagonal(jac2[nq:,2:])[:1+nr])) # sparsify numdiff derivative
-        ej = np.abs(jac1-jac2)
-        print('\nJacobian difference (min,mean,max): %.2e %.2e %.2e' % (np.min(ej),np.mean(ej),np.max(ej)))
+        # move Jacobian to CPU if required
+        if xp.__name__ == 'cupy':
+            return jac.get()
+        else:
+            return jac
 
     # set GALAHAD SNLS options
     options = snls.initialize()
@@ -152,7 +153,11 @@ def tt_optimize(G, dims, I_data, I_data_std, sigma=0.25,
     options['stop_pg_absolute'] = 1e-6
 
     # form and scale initial optimization variable
-    x0_scaled = np.hstack((xi0/xi_sc,b0/b_sc,w_r_0))
+    x0_scaled = xp.hstack((xi0/xi_sc,b0/b_sc,w_r_0))
+
+    # move initial guess to CPU if required
+    if xp.__name__ == 'cupy':
+        x0_scaled = x0_scaled.get()
 
     # set GALAHAD SNLS Jacobian info
     Jr_type = 'coordinate'

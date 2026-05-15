@@ -129,7 +129,7 @@ xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
-print('\nComputing full G tensor...', end='')
+print('\nComputing full G tensor...')
 dims = (nqx,nqy,nrp,nre,ntheta,nphi)
 G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
 print('done.')
@@ -155,9 +155,7 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None,
-                                                                        check_residual=False, check_derivative=False, xi_true=xi_true, b_true=b_true,
-                                                                        w_rp_true=w_rp_true, w_re_true=w_re_true, w_theta_true=w_theta_true, w_phi_true=w_phi_true)
+xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
@@ -193,9 +191,20 @@ I_opt = xi_opt * Gw_opt + b_opt
 plt.figure()
 plt.imshow(I_opt.T,
            extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
-           norm=colors.LogNorm(vmin=I_opt.min(), vmax=I_opt.max()))
+           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
 plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
 plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
 plt.title(r"Optimized Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
+plt.colorbar()
+plt.show()
+
+# plot intensity misfit
+plt.figure()
+plt.imshow(np.abs(I_data.T - I_opt.T),
+           extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
+           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
+plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
+plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
+plt.title(r"Intensity Misfit ($\mathrm{cm}^{-1})$")
 plt.colorbar()
 plt.show()

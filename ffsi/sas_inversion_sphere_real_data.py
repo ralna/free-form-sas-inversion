@@ -7,7 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import time
 import cupy as cp
 from ffsi.models.sphere import G_sphere
-from ffsi.optimize_sphere_galahad_cupy import tt_optimize
+from ffsi.optimize_sphere_galahad import tt_optimize
 
 # for plotting
 import matplotlib.pyplot as plt
