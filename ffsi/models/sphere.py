@@ -12,18 +12,52 @@ Author: Jaroslav Fowkes (STFC)
 """
 import cupy as cp
 
-def G_sphere(q, r, drho):
+from ffsi.models.basemodel import SASModel
 
-    # use CPU or GPU as appropriate
-    xp = cp.get_array_module(q, r, drho)
-    print("(using " + xp.__name__ + " for G computation)")
+class Sphere(SASModel):
 
-    # sphere volume
-    V = 4/3 * xp.pi * r ** 3
+    @classmethod
+    def compute_G(self, q_list, param_dict, const_dict):
 
-    # sphere scattering amplitude
-    qr = xp.outer(q, r)
-    F = 3 * V[None,:] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
+        # extract parameters
+        q = q_list[0]
+        r = param_dict['r']
+        drho = const_dict['drho']
 
-    # Green's function
-    return F ** 2
+        # use CPU or GPU as appropriate
+        xp = cp.get_array_module(q, r, drho)
+        print("(using " + xp.__name__ + " for G computation)")
+
+        # sphere volume
+        V = 4/3 * xp.pi * r ** 3
+
+        # sphere scattering amplitude
+        qr = xp.outer(q, r)
+        F = 3 * V[None,:] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
+
+        # Green's function (scattering intensity)
+        return F ** 2
+
+    @classmethod
+    def compute_average_V(self, param_dict, w_dict):
+
+        # extract parameters
+        r = param_dict['r']
+        w_r = w_dict['r']
+
+        # use CPU or GPU as appropriate
+        xp = cp.get_array_module(r, w_r)
+
+        # sphere volume
+        V = 4/3 * xp.pi * r ** 3
+
+        # average sphere volume
+        return V @ w_r
+
+    @classmethod
+    def get_param_keys_G(self):
+        return ['r']
+
+    @classmethod
+    def get_param_keys_V(self):
+        return ['r']
