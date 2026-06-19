@@ -5,8 +5,9 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.cylinder import G_cylinder
-from ffsi.optimize_cylinder_galahad import tt_optimize
+from ffsi.models import Cylinder
+from ffsi.optimize_cylinder_galahad import optimize
+from ffsi.utils import contract_tensor
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -123,20 +124,24 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-V = np.pi * l[:,np.newaxis] * r[np.newaxis,:] ** 2 # cylinder volume
-V_ave = w_l_true.T @ V @ w_r_true
+w_true_dict = {'l':w_l_true, 'r':w_r_true, 'theta':w_theta_true, 'phi':w_phi_true}
+v_param_dict = {'l':l, 'r':r}
+V_ave = Cylinder.compute_average_V(v_param_dict, w_true_dict)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
 print('\nComputing full G tensor...')
-dims = (nqx,nqy,nl,nr,ntheta,nphi)
-G = G_cylinder(qx, qy, l, r, theta, phi, drho)
+q_list = [qx,qy]
+param_dict = {'l':l, 'r':r, 'theta':theta, 'phi':phi}
+const_dict = {'drho':drho}
+G = Cylinder.compute_G(q_list, param_dict, const_dict)
 print('done.')
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...', end='')
-Gw_true = (((G @ w_phi_true) @ w_theta_true) @ w_r_true) @ w_l_true
+w_true_list = [w_l_true, w_r_true, w_theta_true, w_phi_true]
+Gw_true = contract_tensor(G, w_true_list, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
@@ -155,16 +160,16 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_l_opt, w_r_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("Optimized distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(l, w_l_opt * 100) # x100 to percent
-ax[0,1].plot(r, w_r_opt * 100) # x100 to percent
-ax[1,0].plot(theta, w_theta_opt * 100) # x100 to percent
-ax[1,1].plot(phi, w_phi_opt * 100) # x100 to percent
+ax[0,0].plot(l, w_opt_list[0] * 100) # x100 to percent
+ax[0,1].plot(r, w_opt_list[1] * 100) # x100 to percent
+ax[1,0].plot(theta, w_opt_list[2] * 100) # x100 to percent
+ax[1,1].plot(phi, w_opt_list[3] * 100) # x100 to percent
 ax[0,0].set_xlabel(r"Length $l$ ($\AA$)")
 ax[0,1].set_xlabel(r"Radius $r$ ($\AA$)")
 ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
@@ -181,7 +186,7 @@ plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = (((G @ w_phi_opt) @ w_theta_opt) @ w_r_opt) @ w_l_opt
+Gw_opt = contract_tensor(G, w_opt_list, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
