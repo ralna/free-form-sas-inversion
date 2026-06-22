@@ -10,6 +10,9 @@ def contract_tensor(G, w_list, skip_axes):
     """
     Contracts G with a list of 1D weight vectors keeping skipped dimensions.
     """
+    if not w_list: # empty weight list
+        return G
+
     # use CPU or GPU as appropriate
     xp = cp.get_array_module(G, w_list)
 

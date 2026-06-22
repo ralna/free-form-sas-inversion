@@ -5,8 +5,9 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.sphere import G_sphere
-from ffsi.optimize_sphere_galahad import tt_optimize
+from ffsi.models import Sphere
+from ffsi.optimize_galahad import optimize
+from ffsi.utils import contract_tensor
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -58,20 +59,24 @@ b_true = 0.5
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-V = 4/3 * np.pi * r ** 3 # sphere volume
-V_ave = V @ w_r_true
+w_true_dict = {'r':w_r_true}
+v_param_dict = {'r':r}
+V_ave = Sphere.compute_average_V(v_param_dict, w_true_dict)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
 print('\nComputing full G tensor...')
-dims = (nq,nr)
-G = G_sphere(q, r, drho)
+q_list = [q]
+param_dict = {'r':r}
+const_dict = {'drho':drho}
+G = Sphere.compute_G(q_list, param_dict, const_dict)
 print('done.')
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...', end='')
-Gw_true = G @ w_r_true
+w_true_list = [w_r_true]
+Gw_true = contract_tensor(G, w_true_list, skip_axes=[0])
 print('done.')
 
 # compute model intensities as the intensity data
@@ -94,11 +99,11 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std, sigma=0.25)
 
 # plot optimized distributions
 plt.figure()
-plt.plot(r, w_r_opt * 100) # x100 to percent
+plt.plot(r, w_opt_list[0] * 100) # x100 to percent
 plt.grid()
 plt.title("Optimized distributions")
 plt.xlabel(r"Radius $r$ ($\AA$)")
@@ -107,7 +112,7 @@ plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = G @ w_r_opt
+Gw_opt = contract_tensor(G, w_opt_list, skip_axes=[0])
 print('done.')
 
 # compute model intensities as the intensity data

@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 from ffsi.models import Cylinder
-from ffsi.optimize_cylinder_galahad import optimize
+from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
 # for plotting

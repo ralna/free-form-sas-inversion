@@ -5,8 +5,9 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models.ellipsoid import G_ellipsoid
-from ffsi.optimize_ellipsoid_galahad import tt_optimize
+from ffsi.models import Ellipsoid
+from ffsi.optimize_galahad import optimize
+from ffsi.utils import contract_tensor
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -123,20 +124,24 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-V = 4/3 * np.pi * rp[:,np.newaxis] * re[np.newaxis,:] ** 2 # ellipsoid volume
-V_ave = w_rp_true.T @ V @ w_re_true
+w_true_dict = {'rp':w_rp_true, 're':w_re_true, 'theta':w_theta_true, 'phi':w_phi_true}
+v_param_dict = {'rp':rp, 're':re}
+V_ave = Ellipsoid.compute_average_V(v_param_dict, w_true_dict)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
 print('\nComputing full G tensor...')
-dims = (nqx,nqy,nrp,nre,ntheta,nphi)
-G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
+q_list = [qx,qy]
+param_dict = {'rp':rp, 're':re, 'theta':theta, 'phi':phi}
+const_dict = {'drho':drho}
+G = Ellipsoid.compute_G(q_list, param_dict, const_dict)
 print('done.')
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...', end='')
-Gw_true = (((G @ w_phi_true) @ w_theta_true) @ w_re_true) @ w_rp_true
+w_true_list = [w_rp_true, w_re_true, w_theta_true, w_phi_true]
+Gw_true = contract_tensor(G, w_true_list, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
@@ -155,16 +160,16 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("Optimized distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(rp, w_rp_opt * 100) # x100 to percent
-ax[0,1].plot(re, w_re_opt * 100) # x100 to percent
-ax[1,0].plot(theta, w_theta_opt * 100) # x100 to percent
-ax[1,1].plot(phi, w_phi_opt * 100) # x100 to percent
+ax[0,0].plot(rp, w_opt_list[0] * 100) # x100 to percent
+ax[0,1].plot(re, w_opt_list[1] * 100) # x100 to percent
+ax[1,0].plot(theta, w_opt_list[2] * 100) # x100 to percent
+ax[1,1].plot(phi, w_opt_list[3] * 100) # x100 to percent
 ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
 ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
 ax[1,0].set_xlabel(r"Ellipsoid axis to beam angle $\theta$ (radians)")
@@ -181,7 +186,7 @@ plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = (((G @ w_phi_opt) @ w_theta_opt) @ w_re_opt) @ w_rp_opt
+Gw_opt = contract_tensor(G, w_opt_list, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
