@@ -6,8 +6,9 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models.sphere import G_sphere
-from ffsi.optimize_sphere_galahad import tt_optimize
+from ffsi.models import Sphere
+from ffsi.optimize_galahad import optimize
+from ffsi.utils import contract_tensor
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -79,18 +80,20 @@ print('G memory: %.2f GB' % G_mem)
 
 # Compute true G
 print('\nComputing full G tensor on GPU...')
-dims = (nq,nr)
+q_list = [q]
+param_dict = {'r':r}
+const_dict = {'drho':drho}
 t0 = time.time()
-G = G_sphere(q, r, drho)
+G = Sphere.compute_G(q_list, param_dict, const_dict)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_r_opt = tt_optimize(G, dims, I_data, I_data_std, sigma=0.25)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std, sigma=0.25)
 
 # Transfer optimized distributions to GPU
-w_r_opt = cp.asarray(w_r_opt)
+w_r_opt = cp.asarray(w_opt_list[0])
 
 # plot optimized distributions
 plt.figure()
@@ -106,7 +109,7 @@ plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = G @ w_r_opt
+Gw_opt = contract_tensor(G, [w_r_opt], skip_axes=[0])
 print('done.')
 
 # compute model intensities as the intensity data
