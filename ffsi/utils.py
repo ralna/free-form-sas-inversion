@@ -31,4 +31,4 @@ def contract_tensor(G, w_list, skip_axes):
     # construct einsum formula (e.g. 'abcd,cd->ab')
     subscripts = f"{g_str},{w_str}->{out_str}"
 
-    return xp.einsum(subscripts, G, *w_list)
+    return xp.einsum(subscripts, G, *w_list, optimize=True)
