@@ -6,8 +6,9 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models.ellipsoid import G_ellipsoid
-from ffsi.optimize_ellipsoid_galahad import tt_optimize
+from ffsi.models import Ellipsoid
+from ffsi.optimize_galahad import optimize
+from ffsi.utils import contract_tensor
 
 # for plotting
 import matplotlib.pyplot as plt
@@ -123,9 +124,9 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # compute the ground truth of xi
-# TODO: use a models function for the volume
-V = 4/3 * cp.pi * rp[:,cp.newaxis] * re[cp.newaxis,:] ** 2 # ellipsoid volume
-V_ave = w_rp_true.T @ V @ w_re_true
+w_true_dict = {'rp':w_rp_true, 're':w_re_true, 'theta':w_theta_true, 'phi':w_phi_true}
+v_param_dict = {'rp':rp, 're':re}
+V_ave = Ellipsoid.compute_average_V(v_param_dict, w_true_dict)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
@@ -139,15 +140,18 @@ print('G memory: %.2f GB' % G_mem)
 
 # Compute true G
 print('\nComputing full G tensor on GPU...')
-dims = (nqx,nqy,nrp,nre,ntheta,nphi)
+q_list = [qx,qy]
+param_dict = {'rp':rp, 're':re, 'theta':theta, 'phi':phi}
+const_dict = {'drho':drho}
 t0 = time.time()
-G = G_ellipsoid(qx, qy, rp, re, theta, phi, drho)
+G = Ellipsoid.compute_G(q_list, param_dict, const_dict)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 
 # compute Gw_true for simulating the intensities
 print('\nComputing Gw for simulating the intensities...', end='')
-Gw_true = (((G @ w_phi_true) @ w_theta_true) @ w_re_true) @ w_rp_true
+w_true_list = [w_rp_true, w_re_true, w_theta_true, w_phi_true]
+Gw_true = contract_tensor(G, w_true_list, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
@@ -166,16 +170,16 @@ plt.show()
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_rp_opt, w_re_opt, w_theta_opt, w_phi_opt = tt_optimize(G, dims, I_data, I_data, sigma=None)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 fig, ax = plt.subplots(2, 2)
 plt.suptitle("Optimized distributions")
 plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(rp.get(), w_rp_opt * 100) # x100 to percent
-ax[0,1].plot(re.get(), w_re_opt * 100) # x100 to percent
-ax[1,0].plot(theta.get(), w_theta_opt * 100) # x100 to percent
-ax[1,1].plot(phi.get(), w_phi_opt * 100) # x100 to percent
+ax[0,0].plot(rp.get(), w_opt_list[0] * 100) # x100 to percent
+ax[0,1].plot(re.get(), w_opt_list[1] * 100) # x100 to percent
+ax[1,0].plot(theta.get(), w_opt_list[2] * 100) # x100 to percent
+ax[1,1].plot(phi.get(), w_opt_list[3] * 100) # x100 to percent
 ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
 ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
 ax[1,0].set_xlabel(r"Cylinder axis to beam angle $\theta$ (radians)")
@@ -191,14 +195,11 @@ ax[1,1].grid()
 plt.show()
 
 # Transfer optimized distributions to GPU
-w_rp_opt = cp.asarray(w_rp_opt)
-w_re_opt = cp.asarray(w_re_opt)
-w_theta_opt = cp.asarray(w_theta_opt)
-w_phi_opt = cp.asarray(w_phi_opt)
+w_opt_list_gpu = [cp.asarray(w) for w in w_opt_list]
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
-Gw_opt = (((G @ w_phi_opt) @ w_theta_opt) @ w_re_opt) @ w_rp_opt
+Gw_opt = contract_tensor(G, w_opt_list_gpu, skip_axes=[0,1])
 print('done.')
 
 # compute model intensities as the intensity data
