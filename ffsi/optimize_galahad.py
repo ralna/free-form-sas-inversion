@@ -84,7 +84,7 @@ def optimize(G, I_data, I_data_std, sigma=None):
         # extract variables and unscale
         xi = x[0] * xi_sc
         b = x[1] * b_sc
-        split_inds = xp.cumsum(p_dims)[:-1]
+        split_inds = np.cumsum(p_dims)[:-1]
         w_list = xp.split(x[2:], split_inds)
 
         # form Gw (the form factor)
@@ -117,7 +117,7 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
         # extract variables and unscale
         xi = x[0] * xi_sc
-        split_inds = xp.cumsum(p_dims)[:-1]
+        split_inds = np.cumsum(p_dims)[:-1]
         w_list = xp.split(x[2:], split_inds)
 
         # form Gw (the form factor)
@@ -240,8 +240,8 @@ def optimize(G, I_data, I_data_std, sigma=None):
     # extract results and unscale
     xi_opt = x[0] * xi_sc
     b_opt = x[1] * b_sc
-    split_inds = xp.cumsum(p_dims)[:-1]
-    w_opt_list = xp.split(x[2:], split_inds)
+    split_inds = np.cumsum(p_dims)[:-1]
+    w_opt_list = np.split(x[2:], split_inds)
 
     print()
     print('xi*: %.2e' % xi_opt)
