@@ -14,8 +14,8 @@ drho - difference between scattering length densities
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import cupy as cp
-import cupyx.scipy as cps
+from ffsi.array_module import get_array_module
+from ffsi.array_module import get_science_module
 
 from ffsi.models.basemodel import SASModel
 
@@ -31,8 +31,8 @@ class Cylinder(SASModel):
         drho = const_dict['drho']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(qx, qy, l, r, theta, phi, drho)
-        xps = cps.get_array_module(qx, qy, l, r, theta, phi, drho)
+        xp = get_array_module(qx, qy, l, r, theta, phi, drho)
+        xps = get_science_module(qx, qy, l, r, theta, phi, drho)
         print("(using " + xp.__name__ + " and " + xps.__name__ + " for G computation)")
 
         # cylinder volume
@@ -64,7 +64,7 @@ class Cylinder(SASModel):
         w_l, w_r = w_dict['l'], w_dict['r']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(l, r, w_l, w_r)
+        xp = get_array_module(l, r, w_l, w_r)
 
         # cylinder volume
         V = xp.pi * l[:,None] * r[None,:] ** 2

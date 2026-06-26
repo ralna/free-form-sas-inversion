@@ -14,7 +14,7 @@ drho - difference between scattering length densities
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import cupy as cp
+from ffsi.array_module import get_array_module
 
 from ffsi.models.basemodel import SASModel
 
@@ -30,7 +30,7 @@ class Ellipsoid(SASModel):
         drho = const_dict['drho']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(qx, qy, rp, re, theta, phi, drho)
+        xp = get_array_module(qx, qy, rp, re, theta, phi, drho)
         print("(using " + xp.__name__ + " for G computation)")
 
         # ellipsoid volume
@@ -62,7 +62,7 @@ class Ellipsoid(SASModel):
         w_rp, w_re = w_dict['rp'], w_dict['re']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(rp, re, w_rp, w_re)
+        xp = get_array_module(rp, re, w_rp, w_re)
 
         # ellipsoid volume
         V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2

@@ -4,7 +4,7 @@ Tensor multiplication utility functions
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import cupy as cp
+from ffsi.array_module import get_array_module
 
 def contract_tensor(G, w_list, skip_axes):
     """
@@ -14,7 +14,7 @@ def contract_tensor(G, w_list, skip_axes):
         return G
 
     # use CPU or GPU as appropriate
-    xp = cp.get_array_module(G, w_list)
+    xp = get_array_module(G, w_list)
 
     # create label string for G (e.g. 'abcd')
     g_labels = [chr(97+i) for i in range(G.ndim)]
