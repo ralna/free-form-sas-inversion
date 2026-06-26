@@ -81,7 +81,7 @@ np.random.seed(0)
 I_data_std = (np.random.rand(len(q)) * 0.1 + 0.2) * I_data
 
 # plot intensities
-plot_1d_intensities(q, I_data, I_data_std)
+plot_1d_intensity(q, I_data, I_data_std)
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
@@ -99,4 +99,4 @@ print('done.')
 I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
-plot_optimized_intensities(q, I_data, I_opt, I_data_std)
+plot_1d_optimized_intensity(q, I_data, I_opt, I_data_std)
