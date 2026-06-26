@@ -4,12 +4,12 @@ Crazy distributions generator
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import cupy as cp
+from ffsi.array_module import get_array_module
 
 def crazy_distribution(x, gaussians, noise_level, fade_start, fade_end, seed=0):
 
     # use CPU or GPU as appropriate
-    xp = cp.get_array_module(x)
+    xp = get_array_module(x)
 
     # create
     w_true = xp.zeros(x.shape)

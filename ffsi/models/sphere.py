@@ -10,7 +10,7 @@ drho - difference between scattering length densities
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-import cupy as cp
+from ffsi.array_module import get_array_module
 
 from ffsi.models.basemodel import SASModel
 
@@ -25,7 +25,7 @@ class Sphere(SASModel):
         drho = const_dict['drho']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(q, r, drho)
+        xp = get_array_module(q, r, drho)
         print("(using " + xp.__name__ + " for G computation)")
 
         # sphere volume
@@ -46,7 +46,7 @@ class Sphere(SASModel):
         w_r = w_dict['r']
 
         # use CPU or GPU as appropriate
-        xp = cp.get_array_module(r, w_r)
+        xp = get_array_module(r, w_r)
 
         # sphere volume
         V = 4/3 * xp.pi * r ** 3

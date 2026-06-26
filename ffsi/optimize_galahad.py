@@ -22,8 +22,9 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-import cupy as cp
 from galahad import snls
+
+from ffsi.array_module import get_array_module
 
 from ffsi.utils import contract_tensor
 
@@ -31,7 +32,7 @@ from ffsi.utils import contract_tensor
 def optimize(G, I_data, I_data_std, sigma=None):
 
     # use CPU or GPU as appropriate
-    xp = cp.get_array_module(G, I_data, I_data_std)
+    xp = get_array_module(G, I_data, I_data_std)
     print("(using " + xp.__name__ + " for residual and Jacobian computation)")
 
     # determine if data is 1D or 2D
