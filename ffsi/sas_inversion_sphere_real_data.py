@@ -11,7 +11,7 @@ from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
 # for plotting
-import matplotlib.pyplot as plt
+from ffsi.plotting import *
 
 ## Step 0: Choose dataset
 dataset = 'SANS' # options are SANS or SAXS
@@ -60,15 +60,7 @@ print('q: fromdata(%d,%d,%d)' % (min(q), max(q), nq))
 print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
 
 # plot intensities
-plt.figure()
-plt.errorbar(q.get(), I_data.get(), yerr=I_data_std.get(), ecolor='gray')
-plt.grid()
-plt.xscale('log')
-plt.yscale('log')
-plt.title('Intensity')
-plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
-plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
-plt.show()
+plot_1d_intensities(q.get(), I_data.get(), I_data_std=I_data_std.get())
 
 # Calculate required memory for G
 print('\nG tensor memory requirements:')
@@ -92,20 +84,11 @@ print('G computation time on GPU: %.2f s' % (t1-t0))
 print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std, sigma=0.25)
 
+# plot optimized distributions
+plot_sphere_distribution(r.get(), w_opt_list[0], title='Optimized distribution', normalize_by_volume=True)
+
 # Transfer optimized distributions to GPU
 w_r_opt = cp.asarray(w_opt_list[0])
-
-# plot optimized distributions
-plt.figure()
-v = r ** 3 # volume
-w_r_hat = w_r_opt * v / (w_r_opt * v).sum() * 100  # x100 to percent
-cmap = plt.get_cmap('turbo_r') # colormap
-plt.plot(r.get(), w_r_hat.get(), c=cmap(0.0))
-plt.grid()
-plt.title("Optimized distributions")
-plt.xlabel(r"Radius $r$ ($\AA$)")
-plt.ylabel(r"Volume weight $\hat{w}$ (%)")
-plt.show()
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
@@ -116,14 +99,4 @@ print('done.')
 I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
-plt.figure()
-plt.grid()
-plt.errorbar(q.get(), I_data.get(), yerr=I_data_std.get(), ecolor='gray', marker='o', markerfacecolor='none')
-plt.plot(q.get(), I_opt.get(), color='red', zorder=5)
-plt.xscale('log')
-plt.yscale('log')
-plt.title('Optimized Intensity')
-plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
-plt.ylabel(r"Intensity $I$ ($\mathrm{cm}^{-1}$)")
-plt.legend(['Fit','Data'])
-plt.show()
+plot_optimized_intensities(q.get(), I_data.get(), I_opt.get(), I_data_std=I_data_std.get())
