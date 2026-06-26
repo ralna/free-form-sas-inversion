@@ -10,6 +10,9 @@ from ffsi.models import Cylinder
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
+# for simulating distributions
+from ffsi.crazy_distributions import crazy_distribution
+
 # for plotting
 from ffsi.plotting import *
 

@@ -9,6 +9,9 @@ from ffsi.models import Cylinder
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
+# for simulating distributions
+from ffsi.crazy_distributions import crazy_distribution
+
 # for plotting
 from ffsi.plotting import *
 
@@ -60,30 +63,6 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 
 ## Step 1: Generate ground truth
 print("\nStep 1: Generate ground truth\n")
-
-# ground truth distributions generator from paper
-def crazy_distribution(x, gaussians, noise_level, fade_start, fade_end, seed=0):
-    # create
-    w_true = np.zeros(x.shape)
-
-    # add Gaussians
-    for factor, mean, stddev in gaussians:
-        w_true += factor * np.exp(-((x - mean) / stddev) ** 2)
-
-    # add noise
-    np.random.seed(seed)
-    w_true += noise_level * np.random.rand(*x.shape) * np.random.rand(*x.shape)
-
-    # fade both ends to make it look nicer
-    if len(x) >= 3:
-        w_true[0:fade_start] = 0.
-        w_true[fade_start:fade_end] *= np.linspace(0, 1, fade_end - fade_start)
-        w_true[-fade_start:] = 0.
-        w_true[-fade_end:-fade_start] *= np.linspace(1, 0, fade_end - fade_start)
-
-    # normalize to 1
-    w_true /= np.sum(w_true)
-    return w_true
 
 # generate ground truth distributions
 w_l_true = crazy_distribution(l, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 0, 1, 1)
