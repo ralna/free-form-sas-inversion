@@ -10,8 +10,7 @@ from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
 # for plotting
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
+from ffsi.plotting import *
 
 ## Step 0: Discretisation parameters
 print("Step 0: Discretise parameters\n")
@@ -97,26 +96,7 @@ theta = np.deg2rad(theta)
 phi = np.deg2rad(phi)
 
 # plot "true" distributions
-fig, ax = plt.subplots(2, 2)
-plt.suptitle("True distributions")
-plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(rp, w_rp_true * 100) # x100 to percent
-ax[0,1].plot(re, w_re_true * 100) # x100 to percent
-ax[1,0].plot(theta, w_theta_true * 100) # x100 to percent
-ax[1,1].plot(phi, w_phi_true * 100) # x100 to percent
-ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
-ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
-ax[1,0].set_xlabel(r"Ellipsoid axis to beam angle $\theta$ (radians)")
-ax[1,1].set_xlabel(r"Rotation about beam $\phi$ (radians)")
-ax[0,0].set_ylabel(r"Weights $w$ (%)")
-ax[0,1].set_ylabel(r"Weights $w$ (%)")
-ax[1,0].set_ylabel(r"Weights $w$ (%)")
-ax[1,1].set_ylabel(r"Weights $w$ (%)")
-ax[0,0].grid()
-ax[0,1].grid()
-ax[1,0].grid()
-ax[1,1].grid()
-plt.show()
+plot_ellipsoid_distributions([rp,re,theta,phi], [w_rp_true,w_re_true,w_theta_true,w_phi_true], title='True distributions')
 
 # ground truth of scale and background
 scale_true = 0.15
@@ -148,41 +128,14 @@ print('done.')
 I_data = xi_true * Gw_true + b_true
 
 # plot intensities
-plt.figure()
-plt.imshow(I_data.T,
-           extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
-           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
-plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
-plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
-plt.title(r"Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
-plt.colorbar()
-plt.show()
+plot_2d_intensity(qx, qy, I_data)
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
-fig, ax = plt.subplots(2, 2)
-plt.suptitle("Optimized distributions")
-plt.subplots_adjust(hspace=.5, wspace=.5)
-ax[0,0].plot(rp, w_opt_list[0] * 100) # x100 to percent
-ax[0,1].plot(re, w_opt_list[1] * 100) # x100 to percent
-ax[1,0].plot(theta, w_opt_list[2] * 100) # x100 to percent
-ax[1,1].plot(phi, w_opt_list[3] * 100) # x100 to percent
-ax[0,0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
-ax[0,1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
-ax[1,0].set_xlabel(r"Ellipsoid axis to beam angle $\theta$ (radians)")
-ax[1,1].set_xlabel(r"Rotation about beam $\phi$ (radians)")
-ax[0,0].set_ylabel(r"Weights $w$ (%)")
-ax[0,1].set_ylabel(r"Weights $w$ (%)")
-ax[1,0].set_ylabel(r"Weights $w$ (%)")
-ax[1,1].set_ylabel(r"Weights $w$ (%)")
-ax[0,0].grid()
-ax[0,1].grid()
-ax[1,0].grid()
-ax[1,1].grid()
-plt.show()
+plot_ellipsoid_distributions([rp,re,theta,phi], w_opt_list, title='Optimized distributions')
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')
@@ -193,23 +146,7 @@ print('done.')
 I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
-plt.figure()
-plt.imshow(I_opt.T,
-           extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
-           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
-plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
-plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
-plt.title(r"Optimized Intensity image $I(q_x, q_y)$ ($\mathrm{cm}^{-1})$")
-plt.colorbar()
-plt.show()
+plot_2d_optimized_intensity(qx, qy, I_data, I_opt)
 
 # plot intensity misfit
-plt.figure()
-plt.imshow(np.abs(I_data.T - I_opt.T),
-           extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
-           norm=colors.LogNorm(vmin=I_data.min(), vmax=I_data.max()))
-plt.xlabel(r"Scattering vector $qx$ ($\AA^{-1}$)")
-plt.ylabel(r"Scattering vector $qy$ ($\AA^{-1}$)")
-plt.title(r"Intensity Misfit ($\mathrm{cm}^{-1})$")
-plt.colorbar()
-plt.show()
+plot_2d_intensity_misfit(qx, qy, I_data, I_opt)
