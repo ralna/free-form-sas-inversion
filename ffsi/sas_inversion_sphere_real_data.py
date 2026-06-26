@@ -60,7 +60,7 @@ print('q: fromdata(%d,%d,%d)' % (min(q), max(q), nq))
 print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
 
 # plot intensities
-plot_1d_intensities(q.get(), I_data.get(), I_data_std=I_data_std.get())
+plot_1d_intensity(q.get(), I_data.get(), I_data_std=I_data_std.get())
 
 # Calculate required memory for G
 print('\nG tensor memory requirements:')
@@ -99,4 +99,4 @@ print('done.')
 I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
-plot_optimized_intensities(q.get(), I_data.get(), I_opt.get(), I_data_std=I_data_std.get())
+plot_1d_optimized_intensity(q.get(), I_data.get(), I_opt.get(), I_data_std=I_data_std.get())
