@@ -31,7 +31,7 @@ class Ellipsoid(SASModel):
 
         # use CPU or GPU as appropriate
         xp = get_array_module(qx, qy, rp, re, theta, phi, drho)
-        print("(using " + xp.__name__ + " for G computation)")
+        print("INFO: using " + xp.__name__ + " for G computation")
 
         # ellipsoid volume
         V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2

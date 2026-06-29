@@ -33,7 +33,7 @@ class Cylinder(SASModel):
         # use CPU or GPU as appropriate
         xp = get_array_module(qx, qy, l, r, theta, phi, drho)
         xps = get_science_module(qx, qy, l, r, theta, phi, drho)
-        print("(using " + xp.__name__ + " and " + xps.__name__ + " for G computation)")
+        print("INFO: using " + xp.__name__ + " and " + xps.__name__ + " for G computation")
 
         # cylinder volume
         V = xp.pi * l[:,None] * r[None,:] ** 2

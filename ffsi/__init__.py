@@ -13,4 +13,4 @@ try:
 except Exception as e:
     print('WARNING: CuPy is not installed, cannot use GPU computation')
     print(e)
-    print('WARNING: continuting with CPU computation only')
+    print('WARNING: continuing with CPU computation only')
