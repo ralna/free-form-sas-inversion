@@ -26,7 +26,7 @@ class Sphere(SASModel):
 
         # use CPU or GPU as appropriate
         xp = get_array_module(q, r, drho)
-        print("(using " + xp.__name__ + " for G computation)")
+        print("INFO: using " + xp.__name__ + " for G computation")
 
         # sphere volume
         V = 4/3 * xp.pi * r ** 3

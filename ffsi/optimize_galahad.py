@@ -33,7 +33,7 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
     # use CPU or GPU as appropriate
     xp = get_array_module(G, I_data, I_data_std)
-    print("(using " + xp.__name__ + " for residual and Jacobian computation)")
+    print("INFO: using " + xp.__name__ + " for residual and Jacobian computation")
 
     # determine if data is 1D or 2D
     if len(I_data.shape) == 1:
@@ -195,15 +195,13 @@ def optimize(G, I_data, I_data_std, sigma=None):
     cohort = np.hstack(( np.array([-1,-1]), *ch_list))
 
     # set GALAHAD SNLS Jacobian info
-    Jr_type = 'coordinate'
     if sigma is None: # no regularization
-        # FIXME: this should probably be 'dense' for performance reasons
+        Jr_type = 'dense'
         Jr_ne = m_r * n
-        # flattened intensity misfit derivative
-        Jr_row = np.tile(np.arange(m_r),(n,1)).flatten('F')
-        Jr_col = np.tile(np.arange(n),m_r)
+        Jr_row = None
+        Jr_col = None
     else: # regularization requested
-        # FIXME: this needs to stay as 'coordinate'
+        Jr_type = 'coordinate'
         nq = np.prod(q_dims)
         Jr_ne = nq*n + 2*np.sum(np.array(p_dims)-1)
         # flattened intensity misfit derivative
