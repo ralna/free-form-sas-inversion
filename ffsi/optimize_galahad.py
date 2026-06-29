@@ -99,10 +99,10 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
         # handle regularization
         if sigma is None: # no regularization
-            res = eps.flatten()
+            res = eps.reshape(-1)
         else: # regularisation terms sigma(w[i+1]-w[i])
             reg = [sigma * xp.diff(w) for w in w_list]
-            res = xp.concat((eps.flatten(),*reg))
+            res = xp.concat((eps.reshape(-1),*reg))
 
         # move residual to CPU if required
         if xp.__name__ == 'cupy':
@@ -126,11 +126,11 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
         # xi derivative
         dxi = (xi_sc *  Gw ) / I_data_std # scaled
-        dxi = dxi.flatten() # flatten in q
+        dxi = dxi.reshape(-1) # flatten in q
 
         # b derivative
         db = b_sc / I_data_std # scaled
-        db = db.flatten() # flatten in q
+        db = db.reshape(-1) # flatten in q
 
         # w derivatives
         dw_list = []
@@ -142,7 +142,7 @@ def optimize(G, I_data, I_data_std, sigma=None):
             dw_list.append(dw)
 
         # intensity misfit derivative (flattened)
-        deps = xp.hstack((dxi[:,None],db[:,None],*dw_list)).flatten()
+        deps = xp.hstack((dxi[:,None],db[:,None],*dw_list)).reshape(-1)
 
         # handle regularization
         if sigma is None: # no regularization
