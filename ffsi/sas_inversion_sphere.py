@@ -7,6 +7,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from ffsi.models import Sphere
 from ffsi.optimize_galahad import optimize
+from ffsi.sensitivity_analysis import sensitivity
 from ffsi.utils import contract_tensor
 
 # for plotting
@@ -100,3 +101,7 @@ I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
 plot_1d_optimized_intensity(q, I_data, I_opt, I_data_std)
+
+## Step 3: Sensitivity Analysis
+print("\nStep 3: Sensitivity for the optimized parameters\n")
+sens_xi, sens_b, sens_w_list, std_xi, std_b, std_w_list = sensitivity(G, I_data, I_data, xi_opt, b_opt, w_opt_list)
