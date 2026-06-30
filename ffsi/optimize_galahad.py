@@ -124,25 +124,25 @@ def optimize(G, I_data, I_data_std, sigma=None):
         # form Gw (the form factor)
         Gw = contract_tensor(G, w_list, skip_axes=q_axes)
 
+        # preallocate storage for intensity misfit derivative
+        deps = xp.empty((*q_dims, 2+np.sum(p_dims)))
+
         # xi derivative
-        dxi = (xi_sc *  Gw ) / I_data_std # scaled
-        dxi = dxi.reshape(-1) # flatten in q
+        deps[...,0] = (xi_sc *  Gw ) / I_data_std # scaled
 
         # b derivative
-        db = b_sc / I_data_std # scaled
-        db = db.reshape(-1) # flatten in q
+        deps[...,1] = b_sc / I_data_std # scaled
 
         # w derivatives
-        dw_list = []
+        inds = np.cumsum((2,*p_dims))
         for i in range(len(p_dims)):
+            slice_i = slice(inds[i],inds[i+1])
             w_contract_list = [w for k,w in enumerate(w_list) if k != i]
             Gw_dw = contract_tensor(G, w_contract_list, skip_axes=[*q_axes,p_axes[0]+i])
-            dw = ( xi * Gw_dw ) / I_data_std[...,None]
-            dw = dw.reshape(-1, dw.shape[-1]) # flatten in q
-            dw_list.append(dw)
+            deps[...,slice_i] = ( xi * Gw_dw ) / I_data_std[...,None]
 
-        # intensity misfit derivative (flattened)
-        deps = xp.hstack((dxi[:,None],db[:,None],*dw_list)).reshape(-1)
+        # flatten intensity misfit derivative
+        deps = deps.reshape(-1)
 
         # handle regularization
         if sigma is None: # no regularization
@@ -192,7 +192,7 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
     # set GALAHAD SNLS cohorts
     ch_list = [i * np.ones(n, dtype=int) for i,n in enumerate(p_dims)]
-    cohort = np.hstack(( np.array([-1,-1]), *ch_list))
+    cohort = np.concat(( np.array([-1,-1]), *ch_list))
 
     # set GALAHAD SNLS Jacobian info
     if sigma is None: # no regularization

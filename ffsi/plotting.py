@@ -11,6 +11,7 @@ import matplotlib.colors as colors
 ### 1D intensity plotting
 
 def plot_1d_intensity(q, I_data, I_data_std=None):
+    print('INFO: plotting 1D intensity...')
     plt.figure()
     plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray')
     plt.grid()
@@ -22,6 +23,7 @@ def plot_1d_intensity(q, I_data, I_data_std=None):
     plt.show()
 
 def plot_1d_optimized_intensity(q, I_data, I_opt, I_data_std=None):
+    print('INFO: plotting 1D optimized intensity...')
     plt.figure()
     plt.grid()
     plt.errorbar(q, I_data, yerr=I_data_std, ecolor='gray', marker='o', markerfacecolor='none')
@@ -37,6 +39,7 @@ def plot_1d_optimized_intensity(q, I_data, I_opt, I_data_std=None):
 ### 1D sphere plotting
 
 def plot_sphere_distribution(r, w_r, title=None, normalize_by_volume=False):
+    print('INFO: plotting sphere distribution...')
     plt.figure()
     if normalize_by_volume:
         v = r ** 3 # sphere volume
@@ -54,6 +57,7 @@ def plot_sphere_distribution(r, w_r, title=None, normalize_by_volume=False):
 ### 2D intensity plotting
 
 def plot_2d_intensity(qx, qy, I_data):
+    print('INFO: plotting 2D intensity...')
     plt.figure()
     plt.imshow(I_data.T,
             extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
@@ -65,6 +69,7 @@ def plot_2d_intensity(qx, qy, I_data):
     plt.show()
 
 def plot_2d_optimized_intensity(qx, qy, I_data, I_opt):
+    print('INFO: plotting 2D optimized intensity...')
     plt.figure()
     plt.imshow(I_opt.T,
             extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
@@ -76,6 +81,7 @@ def plot_2d_optimized_intensity(qx, qy, I_data, I_opt):
     plt.show()
 
 def plot_2d_intensity_misfit(qx, qy, I_data, I_opt):
+    print('INFO: plotting 2D intensity misfit...')
     plt.figure()
     plt.imshow(np.abs(I_data.T - I_opt.T),
             extent=(qx[0], qx[-1], qy[0], qy[-1]), aspect=1., cmap='turbo',
@@ -89,6 +95,7 @@ def plot_2d_intensity_misfit(qx, qy, I_data, I_opt):
 ### 2D cylinder plotting
 
 def plot_cylinder_distributions(param_list, w_list, title=None):
+    print('INFO: plotting cylinder distributions...')
     fig, ax = plt.subplots(2, 2)
     plt.suptitle(title)
     plt.subplots_adjust(hspace=.5, wspace=.5)
@@ -113,6 +120,7 @@ def plot_cylinder_distributions(param_list, w_list, title=None):
 ### 2D ellipsoid plotting
 
 def plot_ellipsoid_distributions(param_list, w_list, title=None):
+    print('INFO: plotting ellipsoid distributions...')
     fig, ax = plt.subplots(2, 2)
     plt.suptitle(title)
     plt.subplots_adjust(hspace=.5, wspace=.5)
