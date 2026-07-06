@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import cupy as cp
-from ffsi.models.serial.cylinder import G_cylinder as G_cylinder
+from ffsi.models.serial.cylinder import G_cylinder
 from ffsi.models import Cylinder
 
 
@@ -90,12 +90,11 @@ class TestCylinder(unittest.TestCase):
 
         # form arguments for Green's function computation
         q_list = [qx_gpu, qy_gpu]
-        param_dict = {'l': l_gpu, 'r' : r_gpu, 'theta' : theta_gpu, 'phi' : phi_gpu}
-        const_dict = {'drho' : drho}
+        param_list = [l_gpu, r_gpu, theta_gpu, phi_gpu]
 
         # form Green's function tensor on GPU
         print('\nForming G in parallel on GPU...')
-        G_gpu = Cylinder.compute_G(q_list, param_dict, const_dict)
+        G_gpu = Cylinder.compute_scattering_intensity(q_list, param_list, drho)
 
         # move to CPU for error comparison
         G_cpu = G_gpu.get()

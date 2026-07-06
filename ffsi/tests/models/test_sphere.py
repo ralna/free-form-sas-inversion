@@ -54,12 +54,11 @@ class TestSphere(unittest.TestCase):
 
         # form arguments for Green's function computation
         q_list = [q_gpu]
-        param_dict = {'r' : r_gpu}
-        const_dict = {'drho' : drho}
+        param_list = [r_gpu]
 
         # form Green's function tensor on GPU
         print('\nForming G in parallel on GPU...')
-        G_gpu = Sphere.compute_G(q_list, param_dict, const_dict)
+        G_gpu = Sphere.compute_scattering_intensity(q_list, param_list, drho)
 
         # move to CPU for error comparison
         G_cpu = G_gpu.get()

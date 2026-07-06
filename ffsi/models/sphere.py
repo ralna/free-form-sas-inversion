@@ -16,13 +16,14 @@ from ffsi.models.basemodel import SASModel
 
 class Sphere(SASModel):
 
-    @classmethod
-    def compute_G(self, q_list, param_dict, const_dict):
+    param_names_scattering_intensity = ['r']
+
+    @staticmethod
+    def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
         q = q_list[0]
-        r = param_dict['r']
-        drho = const_dict['drho']
+        r = param_list[0]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(q, r, drho)
@@ -35,15 +36,17 @@ class Sphere(SASModel):
         qr = xp.outer(q, r)
         F = 3 * V[None,:] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
 
-        # Green's function (scattering intensity)
+        # scattering intensity (Green's function)
         return F ** 2
 
-    @classmethod
-    def compute_average_V(self, param_dict, w_dict):
+    param_names_average_volume = ['r']
+
+    @staticmethod
+    def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        r = param_dict['r']
-        w_r = w_dict['r']
+        r = param_list[0]
+        w_r = w_list[0]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(r, w_r)
@@ -53,11 +56,3 @@ class Sphere(SASModel):
 
         # average sphere volume
         return V @ w_r
-
-    @classmethod
-    def get_param_keys_G(self):
-        return ['r']
-
-    @classmethod
-    def get_param_keys_V(self):
-        return ['r']
