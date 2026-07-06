@@ -90,12 +90,11 @@ class TestEllipsoid(unittest.TestCase):
 
         # form arguments for Green's function computation
         q_list = [qx_gpu, qy_gpu]
-        param_dict = {'rp': rp_gpu, 're' : re_gpu, 'theta' : theta_gpu, 'phi' : phi_gpu}
-        const_dict = {'drho' : drho}
+        param_list = [rp_gpu, re_gpu, theta_gpu, phi_gpu]
 
         # form Green's function tensor on GPU
         print('\nForming G in parallel on GPU...')
-        G_gpu = Ellipsoid.compute_G(q_list, param_dict, const_dict)
+        G_gpu = Ellipsoid.compute_scattering_intensity(q_list, param_list, drho)
 
         # move to CPU for error comparison
         G_cpu = G_gpu.get()

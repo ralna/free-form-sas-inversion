@@ -73,10 +73,9 @@ print('G memory: %.2f GB' % G_mem)
 # Compute true G
 print('\nComputing full G tensor on GPU...')
 q_list = [q]
-param_dict = {'r':r}
-const_dict = {'drho':drho}
+param_list = [r]
 t0 = time.time()
-G = Sphere.compute_G(q_list, param_dict, const_dict)
+G = Sphere.compute_scattering_intensity(q_list, param_list, drho)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 

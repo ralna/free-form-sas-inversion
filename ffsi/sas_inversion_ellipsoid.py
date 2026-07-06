@@ -83,19 +83,21 @@ scale_true = 0.15
 b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
+# instantiate ellipsoid
+sasmodel = Ellipsoid()
+
 # compute the ground truth of xi
-w_true_dict = {'rp':w_rp_true, 're':w_re_true, 'theta':w_theta_true, 'phi':w_phi_true}
-v_param_dict = {'rp':rp, 're':re}
-V_ave = Ellipsoid.compute_average_V(v_param_dict, w_true_dict)
+w_true_list = [w_rp_true, w_re_true, w_theta_true, w_phi_true]
+v_param_list = [rp, re]
+V_ave = sasmodel.compute_average_volume(v_param_list, w_true_list)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
 # Compute true G
 print('\nComputing full G tensor...')
 q_list = [qx,qy]
-param_dict = {'rp':rp, 're':re, 'theta':theta, 'phi':phi}
-const_dict = {'drho':drho}
-G = Ellipsoid.compute_G(q_list, param_dict, const_dict)
+param_list = [rp, re, theta, phi]
+G = sasmodel.compute_scattering_intensity(q_list, param_list, drho)
 print('done.')
 
 # compute Gw_true for simulating the intensities

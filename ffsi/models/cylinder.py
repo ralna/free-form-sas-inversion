@@ -14,21 +14,21 @@ drho - difference between scattering length densities
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
-from ffsi.array_module import get_array_module
-from ffsi.array_module import get_science_module
+from ffsi.array_module import get_array_module, get_science_module
 
 from ffsi.models.basemodel import SASModel
 
 class Cylinder(SASModel):
 
-    @classmethod
-    def compute_G(self, q_list, param_dict, const_dict):
+    param_names_scattering_intensity = ['l', 'r', 'theta', 'phi']
+
+    @staticmethod
+    def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
         qx, qy = q_list[0], q_list[1]
-        l, r = param_dict['l'], param_dict['r']
-        theta, phi = param_dict['theta'], param_dict['phi']
-        drho = const_dict['drho']
+        l, r = param_list[0], param_list[1]
+        theta, phi = param_list[2], param_list[3]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(qx, qy, l, r, theta, phi, drho)
@@ -53,15 +53,17 @@ class Cylinder(SASModel):
         j1_qar = xps.special.j1(qar) / qar
         F = 2 * V[None,None,:,:,None,None] * drho * sin_hqcl[:,:,:,None,:,:] * j1_qar[:,:,None,:,:,:]
 
-        # Green's function (scattering intensity)
+        # scattering intensity (Green's function)
         return F ** 2
 
-    @classmethod
-    def compute_average_V(self, param_dict, w_dict):
+    param_names_average_volume = ['l', 'r']
+
+    @staticmethod
+    def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        l, r = param_dict['l'], param_dict['r']
-        w_l, w_r = w_dict['l'], w_dict['r']
+        l, r = param_list[0], param_list[1]
+        w_l, w_r = w_list[0], w_list[1]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(l, r, w_l, w_r)
@@ -71,11 +73,3 @@ class Cylinder(SASModel):
 
         # average cylinder volume
         return w_l.T @ V @ w_r
-
-    @classmethod
-    def get_param_keys_G(self):
-        return ['l', 'r', 'theta', 'phi']
-
-    @classmethod
-    def get_param_keys_V(self):
-        return ['l', 'r']

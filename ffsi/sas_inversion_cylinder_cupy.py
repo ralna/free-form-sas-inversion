@@ -82,10 +82,13 @@ scale_true = 0.15
 b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
+# instantiate cylinder
+sasmodel = Cylinder()
+
 # compute the ground truth of xi
-w_true_dict = {'l':w_l_true, 'r':w_r_true, 'theta':w_theta_true, 'phi':w_phi_true}
-v_param_dict = {'l':l, 'r':r}
-V_ave = Cylinder.compute_average_V(v_param_dict, w_true_dict)
+w_true_list = [w_l_true, w_r_true, w_theta_true, w_phi_true]
+v_param_list = [l, r]
+V_ave = sasmodel.compute_average_volume(v_param_list, w_true_list)
 xi_true = 1e-4 * scale_true / V_ave
 print('xi_true: %.2e' % xi_true)
 
@@ -100,10 +103,9 @@ print('G memory: %.2f GB' % G_mem)
 # Compute true G
 print('\nComputing full G tensor on GPU...')
 q_list = [qx,qy]
-param_dict = {'l':l, 'r':r, 'theta':theta, 'phi':phi}
-const_dict = {'drho':drho}
+param_list = [l, r, theta, phi]
 t0 = time.time()
-G = Cylinder.compute_G(q_list, param_dict, const_dict)
+G = sasmodel.compute_scattering_intensity(q_list, param_list, drho)
 t1 = time.time()
 print('G computation time on GPU: %.2f s' % (t1-t0))
 

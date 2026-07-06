@@ -20,14 +20,15 @@ from ffsi.models.basemodel import SASModel
 
 class Ellipsoid(SASModel):
 
-    @classmethod
-    def compute_G(self, q_list, param_dict, const_dict):
+    param_names_scattering_intensity = ['rp', 're', 'theta', 'phi']
+
+    @staticmethod
+    def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
         qx, qy = q_list[0], q_list[1]
-        rp, re = param_dict['rp'], param_dict['re']
-        theta, phi = param_dict['theta'], param_dict['phi']
-        drho = const_dict['drho']
+        rp, re = param_list[0], param_list[1]
+        theta, phi = param_list[2], param_list[3]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(qx, qy, rp, re, theta, phi, drho)
@@ -51,15 +52,17 @@ class Ellipsoid(SASModel):
 
         F = 3 * V[None,None,:,:,None,None] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
 
-        # Green's function (scattering intensity)
+        # scattering intensity (Green's function)
         return F ** 2
 
-    @classmethod
-    def compute_average_V(self, param_dict, w_dict):
+    param_names_average_volume = ['rp', 're']
+
+    @staticmethod
+    def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        rp, re = param_dict['rp'], param_dict['re']
-        w_rp, w_re = w_dict['rp'], w_dict['re']
+        rp, re = param_list[0], param_list[1]
+        w_rp, w_re = w_list[0], w_list[1]
 
         # use CPU or GPU as appropriate
         xp = get_array_module(rp, re, w_rp, w_re)
@@ -69,11 +72,3 @@ class Ellipsoid(SASModel):
 
         # average ellipsoid volume
         return w_rp.T @ V @ w_re
-
-    @classmethod
-    def get_param_keys_G(self):
-        return ['rp', 're', 'theta', 'phi']
-
-    @classmethod
-    def get_param_keys_V(self):
-        return ['rp', 're']

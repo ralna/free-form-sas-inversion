@@ -8,47 +8,39 @@ from abc import ABC, abstractmethod
 
 class SASModel(ABC):
 
-    @classmethod
+    """
+    Names of parameters used for computing the scattering intensity
+    (Green's tensor) `G` ordered by their index in `G`
+    """
+    param_names_scattering_intensity = []
+
+    @staticmethod
     @abstractmethod
-    def compute_G(self, q_list, param_dict, const_dict):
+    def compute_scattering_intensity(q_list, param_list, drho):
         """
-        Compute the Green's tensor `G`
+        Compute the scattering intensity (Green's tensor) `G`
 
         :param q_list: `list` of scattering vectors `q`
-        :param param_dict: `dict` of model parameters
-        :param const_dict: `dict` of model constants
-        :return: the Green's tensor `G`
+        :param param_list: `list` of model parameters
+        :param drho: difference between scattering length densities
+        :return: the scattering intensity (Green's tensor) `G`
         """
         pass
 
-    @classmethod
+    """
+    Names of parameters used for computing the average volume `V`
+    ordered by their index in `V`
+    """
+    param_names_average_volume = []
+
+    @staticmethod
     @abstractmethod
-    def compute_average_V(self, param_dict, w_dict):
+    def compute_average_volume(param_list, w_list):
         """
         Compute the volume `V` averaged across parameters
 
-        :param param_dict: `dict` of model parameters
-        :param w_dict: `dict` of parameter distributions
-        :return: the average volume
-        """
-        pass
-
-    @classmethod
-    @abstractmethod
-    def get_param_keys_G(self):
-        """
-        Get the keys of the parameters used for computing `G`
-
-        :return: `list` of parameter keys ordered by their index in `G`
-        """
-        pass
-
-    @classmethod
-    @abstractmethod
-    def get_param_keys_V(self):
-        """
-        Get the keys of the parameters used for computing `V`
-
-        :return: `list` of parameter keys ordered by their index in `V`
+        :param param_list: `list` of model parameters
+        :param w_list: `list` of parameter distributions
+        :return: the average volume `V`
         """
         pass
