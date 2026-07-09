@@ -86,7 +86,7 @@ print('b_true: %.2e' % b_true)
 sasmodel = Ellipsoid2D()
 
 # compute the ground truth of xi
-w_true_list = [w_rp_true, w_re_true, w_theta_true, w_phi_true]
+w_true_list = [w_rp_true, w_re_true]
 v_param_list = [rp, re]
 V_ave = sasmodel.compute_average_volume(v_param_list, w_true_list)
 xi_true = 1e-4 * scale_true / V_ave
