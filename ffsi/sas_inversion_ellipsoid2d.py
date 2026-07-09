@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models import Ellipsoid
+from ffsi.models import Ellipsoid2D
 from ffsi.optimize_galahad import optimize
 from ffsi.sensitivity_analysis import sensitivity
 from ffsi.utils import contract_tensor
@@ -84,7 +84,7 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # instantiate ellipsoid
-sasmodel = Ellipsoid()
+sasmodel = Ellipsoid2D()
 
 # compute the ground truth of xi
 w_true_list = [w_rp_true, w_re_true, w_theta_true, w_phi_true]

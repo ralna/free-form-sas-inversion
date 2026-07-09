@@ -1,5 +1,5 @@
 """
-SAS Cylinder Model
+SAS Cylinder Model (2D)
 https://www.sasview.org/docs/user/models/cylinder.html
 
 Parameters:
@@ -17,7 +17,7 @@ Author: Jaroslav Fowkes (STFC)
 import numpy as np
 from scipy.special import j1
 
-def G_cylinder(qx, qy, l, r, theta, phi, drho):
+def G_cylinder2d(qx, qy, l, r, theta, phi, drho):
 
     # cylinder volume
     V = np.pi * l * r ** 2

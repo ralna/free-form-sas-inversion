@@ -1,5 +1,5 @@
 """
-SAS Sphere Model
+SAS Sphere Model (1D)
 https://www.sasview.org/docs/user/models/sphere.html
 
 Parameters:

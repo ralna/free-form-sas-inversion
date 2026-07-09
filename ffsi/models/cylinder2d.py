@@ -1,5 +1,5 @@
 """
-SAS Cylinder Model
+SAS Cylinder Model (2D)
 https://www.sasview.org/docs/user/models/cylinder.html
 
 Parameters:
@@ -18,7 +18,7 @@ from ffsi.array_module import get_array_module, get_science_module
 
 from ffsi.models.basemodel import SASModel
 
-class Cylinder(SASModel):
+class Cylinder2D(SASModel):
 
     param_names_scattering_intensity = ['l', 'r', 'theta', 'phi']
 

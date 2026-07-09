@@ -1,5 +1,5 @@
 """
-SAS Ellipsoid Model
+SAS Ellipsoid Model (2D)
 https://www.sasview.org/docs/user/models/ellipsoid.html
 
 Parameters:
@@ -16,7 +16,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
 
-def G_ellipsoid(qx, qy, rp, re, theta, phi, drho):
+def G_ellipsoid2d(qx, qy, rp, re, theta, phi, drho):
 
     # ellipsoid volume
     V = 4/3 * np.pi * rp * re ** 2

@@ -1,5 +1,5 @@
 """
-SAS Ellipsoid Model
+SAS Ellipsoid Model (2D)
 https://www.sasview.org/docs/user/models/ellipsoid.html
 
 Parameters:
@@ -18,7 +18,7 @@ from ffsi.array_module import get_array_module
 
 from ffsi.models.basemodel import SASModel
 
-class Ellipsoid(SASModel):
+class Ellipsoid2D(SASModel):
 
     param_names_scattering_intensity = ['rp', 're', 'theta', 'phi']
 

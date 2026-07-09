@@ -1,5 +1,5 @@
 """
-SAS Hard Sphere Structure Factor
+SAS Hard Sphere Structure Factor (1D)
 https://www.sasview.org/docs/user/models/hardsphere.html
 (adapted from hardsphere.c)
 

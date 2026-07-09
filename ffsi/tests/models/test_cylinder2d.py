@@ -1,14 +1,14 @@
 """
-SAS Ellipsoid Model Test
-https://www.sasview.org/docs/user/models/ellipsoid.html
+SAS Cylinder Model Test
+https://www.sasview.org/docs/user/models/cylinder.html
 
 Parameters:
 qx - scattering vector x component
 qy - scattering vector y component
-rp - polar radius
-re - equatorial radius
-theta - ellipsoid axis to beam angle
-phi - ellipsoid rotation about beam
+l - cylinder length
+r - cylinder radius
+theta - cylinder axis to beam angle
+phi - cylinder rotation about beam
 drho - difference between scattering length densities
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
@@ -18,11 +18,11 @@ import unittest
 
 import numpy as np
 import cupy as cp
-from ffsi.models.serial.ellipsoid import G_ellipsoid
-from ffsi.models import Ellipsoid
+from ffsi.models.serial.cylinder2d import G_cylinder2d
+from ffsi.models import Cylinder2D
 
 
-class TestEllipsoid(unittest.TestCase):
+class TestCylinder(unittest.TestCase):
     def runTest(self):
 
         # contrast
@@ -35,15 +35,15 @@ class TestEllipsoid(unittest.TestCase):
         qx = np.hstack((-q_side[::-1], q_side))
         qy = qx.copy()
 
-        # rp discretisation
-        rpl = 50
-        rpu = 90
-        nrp = 10
+        # l discretisation
+        ll = 200
+        lu = 600
+        nl = 10
 
-        # re discretisation
-        rel = 200
-        reu = 600
-        nre = 9
+        # r discretisation
+        rl = 50
+        ru = 90
+        nr = 9
 
         # theta discretisation
         thetal = 20
@@ -56,45 +56,45 @@ class TestEllipsoid(unittest.TestCase):
         nphi = 7
 
         # discretise l, r, theta, phi
-        rp = np.linspace(rpl, rpu, nrp)
-        re = np.linspace(rel, reu, nre)
+        l = np.linspace(ll, lu, nl)
+        r = np.linspace(rl, ru, nr)
         theta = np.linspace(thetal, thetau, ntheta)
         phi = np.linspace(phil, phiu, nphi)
 
         print('qx: %d' % nqx)
         print('qy: %d' % nqy)
-        print('rp: linspace(%d,%d,%d)' % (rpl, rpu, nrp))
-        print('re: linspace(%d,%d,%d)' % (rel, reu, nre))
+        print('l: linspace(%d,%d,%d)' % (ll, lu, nl))
+        print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
         print('theta: linspace(%d,%d,%d)' % (thetal, thetau, ntheta))
         print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 
         # form Green's function tensor on CPU
         print('\nForming G in serial on CPU...')
-        G = np.zeros((nqx,nqy,nrp,nre,ntheta,nphi))
+        G = np.zeros((nqx,nqy,nl,nr,ntheta,nphi))
         for iqx in range(nqx):
             print('  progress at iqx %d out of %d' % (iqx+1,nqx))
             for iqy in range(nqy):
-                for irp in range(nrp):
-                    for ire in range(nre):
+                for il in range(nl):
+                    for ir in range(nr):
                         for it in range(ntheta):
                             for ip in range(nphi):
-                                G[iqx,iqy,irp,ire,it,ip] = G_ellipsoid(qx[iqx], qy[iqy], rp[irp], re[ire], theta[it], phi[ip], drho)
+                                G[iqx,iqy,il,ir,it,ip] = G_cylinder2d(qx[iqx], qy[iqy], l[il], r[ir], theta[it], phi[ip], drho)
 
         # move data to GPU (for testing, normally would be formed on GPU)
         qx_gpu = cp.asarray(qx)
         qy_gpu = cp.asarray(qy)
-        rp_gpu = cp.asarray(rp)
-        re_gpu = cp.asarray(re)
+        l_gpu = cp.asarray(l)
+        r_gpu = cp.asarray(r)
         theta_gpu = cp.asarray(theta)
         phi_gpu = cp.asarray(phi)
 
         # form arguments for Green's function computation
         q_list = [qx_gpu, qy_gpu]
-        param_list = [rp_gpu, re_gpu, theta_gpu, phi_gpu]
+        param_list = [l_gpu, r_gpu, theta_gpu, phi_gpu]
 
         # form Green's function tensor on GPU
         print('\nForming G in parallel on GPU...')
-        G_gpu = Ellipsoid.compute_scattering_intensity(q_list, param_list, drho)
+        G_gpu = Cylinder2D.compute_scattering_intensity(q_list, param_list, drho)
 
         # move to CPU for error comparison
         G_cpu = G_gpu.get()
@@ -103,4 +103,4 @@ class TestEllipsoid(unittest.TestCase):
         rel_err = np.linalg.norm(G - G_cpu) / np.linalg.norm(G_cpu)
         print('\nG computation relative error: %.2e' % rel_err)
 
-        self.assertAlmostEqual(rel_err, 0, places=14, msg="Inaccurate Ellipsoid G computation")
+        self.assertAlmostEqual(rel_err, 0, places=14, msg="Inaccurate Cylinder G computation")

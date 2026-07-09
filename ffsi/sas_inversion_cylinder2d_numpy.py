@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import numpy as np
-from ffsi.models import Cylinder
+from ffsi.models import Cylinder2D
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
@@ -107,7 +107,7 @@ b_true = 2.2e-4
 print('b_true: %.2e' % b_true)
 
 # instantiate cylinder
-sasmodel = Cylinder()
+sasmodel = Cylinder2D()
 
 # compute the ground truth of xi
 w_true_list = [w_l_true, w_r_true, w_theta_true, w_phi_true]
