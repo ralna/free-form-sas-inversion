@@ -96,7 +96,7 @@ def plot_2d_intensity_misfit(qx, qy, I_data, I_opt):
 
 def plot_cylinder_distributions(param_list, w_list, title=None):
     print('INFO: plotting cylinder distributions...')
-    fig, ax = plt.subplots(1, 2)
+    fig, ax = plt.subplots(1, 2, figsize=(12.8,4.8))
     plt.suptitle(title)
     plt.subplots_adjust(hspace=.5, wspace=.5)
     ax[0].plot(param_list[0], w_list[0] * 100) # x100 to percent
@@ -138,7 +138,7 @@ def plot_cylinder2d_distributions(param_list, w_list, title=None):
 
 def plot_ellipsoid_distributions(param_list, w_list, title=None):
     print('INFO: plotting ellipsoid distributions...')
-    fig, ax = plt.subplots(1, 2)
+    fig, ax = plt.subplots(1, 2, figsize=(12.8,4.8))
     plt.suptitle(title)
     plt.subplots_adjust(hspace=.5, wspace=.5)
     ax[0].plot(param_list[0], w_list[0] * 100) # x100 to percent
