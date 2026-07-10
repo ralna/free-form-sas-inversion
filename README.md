@@ -26,9 +26,9 @@ i.e. essentially the small angle normalised by the wavelength of the radiation.
 
 ### Form Factors (aka Green's Functions)
 The form factor $F(q)$ describes the intensity $I(q)$ of scattering from a *single* nanoparticle over a full range of q and constitutes its SAS fingerprint.
-For example, the form factor $F(q)$ for a sphere of radius $r$ is given via the spherical Bessel function of the first kind of order one as
+For example, the form factor $F(q)$ for a sphere of radius $r$ is given via $j_1(z)$ the spherical Bessel function of the first kind as
 ```math
-F(q) = \left[ 3V(r)\Delta\rho \dfrac{\sin(qr) - qr\cos(qr)}{qr^3} \right]^2
+F(q) = \left[ V(r)\Delta\rho \dfrac{3j_1(qr)}{qr} \right]^2
 ```
 where $V$ is the sphere volume and $\Delta\rho$ the scattering length density difference.
 
