@@ -26,6 +26,11 @@ i.e. essentially the small angle normalised by the wavelength of the radiation.
 
 ### Form Factors (aka Green's Functions)
 The form factor $F(q)$ describes the intensity $I(q)$ of scattering from a *single* nanoparticle over a full range of q and constitutes its SAS fingerprint.
+For example, the form factor $F(q)$ for a sphere of radius $r$ is given via the spherical Bessel function of the first kind of order one as
+```math
+F(q) = \left[ 3V(r)\Delta\rho \dfrac{\sin(qr) - qr\cos(qr)}{qr^3} \right]^2
+```
+where $V$ is the sphere volume and $\Delta\rho$ the scattering length density difference.
 
 This repository currently contains the form factors for:
 
@@ -33,6 +38,13 @@ This repository currently contains the form factors for:
 - [Cylinder (1D and 2D)](https://www.sasview.org/docs/user/models/cylinder.html)
 - [Ellipsoid (1D and 2D)](https://www.sasview.org/docs/user/models/ellipsoid.html)
 
-More form-factors will be added as the project progresses.
+More form-factors will be added as the project progresses (as the code in this repository is vectorized and GPU accelerated, we are unable to directly use the form factors from SASView).
 
-As the code in this repository is vectorized and GPU accelerated, we are unable to directly use the form factors from SASView.
+### Polydispersity
+In a real SAS experiment, we are likely to see a population of nanoparticles that possess size and/or orientational distributions, this is called *polydispersity*.
+The resultant intensity $I(q)$ is then averaged over the distributions. 
+For example, for spheres with different radii,
+```math
+I(q) = \int F(q,r) w(r) dr
+```
+where $w(r)$ is the distribution over the radius.
