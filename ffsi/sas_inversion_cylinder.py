@@ -27,12 +27,12 @@ nq = 200
 # l discretisation
 ll = 200
 lu = 600
-nl = 400
+nl = 100
 
 # r discretisation
 rl = 5
 ru = 35
-nr = 500
+nr = 99
 
 # discretise q, l, r
 q = np.logspace(ql, qu, nq)
@@ -95,7 +95,7 @@ plot_1d_intensity(q, I_data)
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=0.25)
 
 # plot optimized distributions
 plot_cylinder_distributions([l,r], w_opt_list, title='Optimized distributions')

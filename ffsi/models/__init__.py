@@ -9,4 +9,5 @@ Author: Jaroslav Fowkes (STFC)
 from ffsi.models.sphere import Sphere
 from ffsi.models.cylinder import Cylinder
 from ffsi.models.cylinder2d import Cylinder2D
+from ffsi.models.ellipsoid import Ellipsoid
 from ffsi.models.ellipsoid2d import Ellipsoid2D
