@@ -75,7 +75,7 @@ theta = cp.deg2rad(theta)
 phi = cp.deg2rad(phi)
 
 # plot "true" distributions
-plot_cylinder_distributions([l.get(),r.get(),theta.get(),phi.get()], [w_l_true.get(),w_r_true.get(),w_theta_true.get(),w_phi_true.get()], title='True distributions')
+plot_cylinder2d_distributions([l.get(),r.get(),theta.get(),phi.get()], [w_l_true.get(),w_r_true.get(),w_theta_true.get(),w_phi_true.get()], title='True distributions')
 
 # ground truth of scale and background
 scale_true = 0.15
@@ -125,7 +125,7 @@ print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
-plot_cylinder_distributions([l.get(),r.get(),theta.get(),phi.get()], w_opt_list, title='Optimized distributions')
+plot_cylinder2d_distributions([l.get(),r.get(),theta.get(),phi.get()], w_opt_list, title='Optimized distributions')
 
 # Transfer optimized distributions to GPU
 w_opt_list_gpu = [cp.asarray(w) for w in w_opt_list]

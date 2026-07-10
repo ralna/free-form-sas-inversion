@@ -76,7 +76,7 @@ theta = np.deg2rad(theta)
 phi = np.deg2rad(phi)
 
 # plot "true" distributions
-plot_ellipsoid_distributions([rp,re,theta,phi], [w_rp_true,w_re_true,w_theta_true,w_phi_true], title='True distributions')
+plot_ellipsoid2d_distributions([rp,re,theta,phi], [w_rp_true,w_re_true,w_theta_true,w_phi_true], title='True distributions')
 
 # ground truth of scale and background
 scale_true = 0.15
@@ -117,7 +117,7 @@ print("\nStep 2: SAS inversion with true G\n")
 xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
-plot_ellipsoid_distributions([rp,re,theta,phi], w_opt_list, title='Optimized distributions')
+plot_ellipsoid2d_distributions([rp,re,theta,phi], w_opt_list, title='Optimized distributions')
 
 # compute Gw_opt for the optimized intensities
 print('\nComputing Gw for the optimized intensities...', end='')

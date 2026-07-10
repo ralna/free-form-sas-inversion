@@ -92,9 +92,26 @@ def plot_2d_intensity_misfit(qx, qy, I_data, I_opt):
     plt.colorbar()
     plt.show()
 
-### 2D cylinder plotting
+### 1D cylinder plotting
 
 def plot_cylinder_distributions(param_list, w_list, title=None):
+    print('INFO: plotting cylinder distributions...')
+    fig, ax = plt.subplots(1, 2)
+    plt.suptitle(title)
+    plt.subplots_adjust(hspace=.5, wspace=.5)
+    ax[0].plot(param_list[0], w_list[0] * 100) # x100 to percent
+    ax[1].plot(param_list[1], w_list[1] * 100) # x100 to percent
+    ax[0].set_xlabel(r"Length $l$ ($\AA$)")
+    ax[1].set_xlabel(r"Radius $r$ ($\AA$)")
+    ax[0].set_ylabel(r"Weights $w$ (%)")
+    ax[1].set_ylabel(r"Weights $w$ (%)")
+    ax[0].grid()
+    ax[1].grid()
+    plt.show()
+
+### 2D cylinder plotting
+
+def plot_cylinder2d_distributions(param_list, w_list, title=None):
     print('INFO: plotting cylinder distributions...')
     fig, ax = plt.subplots(2, 2)
     plt.suptitle(title)
@@ -117,9 +134,26 @@ def plot_cylinder_distributions(param_list, w_list, title=None):
     ax[1,1].grid()
     plt.show()
 
-### 2D ellipsoid plotting
+### 1D ellipsoid plotting
 
 def plot_ellipsoid_distributions(param_list, w_list, title=None):
+    print('INFO: plotting ellipsoid distributions...')
+    fig, ax = plt.subplots(1, 2)
+    plt.suptitle(title)
+    plt.subplots_adjust(hspace=.5, wspace=.5)
+    ax[0].plot(param_list[0], w_list[0] * 100) # x100 to percent
+    ax[1].plot(param_list[1], w_list[1] * 100) # x100 to percent
+    ax[0].set_xlabel(r"Polar radius $r_p$ ($\AA$)")
+    ax[1].set_xlabel(r"Equatorial radius $r_e$ ($\AA$)")
+    ax[0].set_ylabel(r"Weights $w$ (%)")
+    ax[1].set_ylabel(r"Weights $w$ (%)")
+    ax[0].grid()
+    ax[1].grid()
+    plt.show()
+
+### 2D ellipsoid plotting
+
+def plot_ellipsoid2d_distributions(param_list, w_list, title=None):
     print('INFO: plotting ellipsoid distributions...')
     fig, ax = plt.subplots(2, 2)
     plt.suptitle(title)
