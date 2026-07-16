@@ -28,7 +28,7 @@ from ffsi.array_module import get_array_module
 
 from ffsi.utils import contract_tensor
 
-# TODO: handle both 1D and 2D intensity data
+
 def optimize(G, I_data, I_data_std, sigma=None):
 
     # use CPU or GPU as appropriate
@@ -51,7 +51,6 @@ def optimize(G, I_data, I_data_std, sigma=None):
     w0_list = [xp.ones(n) / n for n in p_dims]
 
     # this averages out G over the parameters
-    # TODO: this is special case
     G_ave = xp.sum(G, axis=p_axes) / np.prod(p_dims)
 
     # and xi0 and b0 can be determined from
