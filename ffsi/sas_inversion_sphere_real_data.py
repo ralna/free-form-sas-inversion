@@ -99,3 +99,16 @@ I_opt = xi_opt * Gw_opt + b_opt
 
 # plot optimized intensities
 plot_1d_optimized_intensity(q.get(), I_data.get(), I_opt.get(), I_data_std=I_data_std.get())
+
+## Step 3: Plot residuals and compute Chi^2
+print("\nStep 3: Normalised residuals\n")
+
+# compute normalised residuals
+residuals = (I_opt - I_data) / I_data_std
+
+# plot normalised residuals
+plot_1d_normalised_residuals(q.get(), residuals.get())
+
+# compute chi^2
+chi2 = cp.sum(residuals ** 2) / residuals.size
+print('Chi^2: %.5e' % chi2)

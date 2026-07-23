@@ -36,6 +36,19 @@ def plot_1d_optimized_intensity(q, I_data, I_opt, I_data_std=None):
     plt.legend(['Fit','Data'])
     plt.show()
 
+### 1D residual plotting
+
+def plot_1d_normalised_residuals(q, residuals):
+    print('INFO: plotting 1D residuals...')
+    plt.figure()
+    plt.scatter(q, residuals)
+    plt.grid()
+    plt.xscale('log')
+    plt.title('Residuals')
+    plt.xlabel(r"Scattering vector $q$ ($\AA^{-1}$)")
+    plt.ylabel(r"Residuals (normalised)")
+    plt.show()
+
 ### 1D sphere plotting
 
 def plot_sphere_distribution(r, w_r, title=None, normalize_by_volume=False):
