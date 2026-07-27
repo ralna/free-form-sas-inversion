@@ -8,7 +8,7 @@ from ffsi.array_module import get_array_module
 
 def contract_tensor(G, w_list, skip_axes):
     """
-    Contracts G with a list of 1D weight vectors keeping skipped dimensions.
+    Contracts G with a list of 1D weight vectors keeping skipped dimensions
     """
     if not w_list: # empty weight list
         return G
@@ -33,7 +33,6 @@ def contract_tensor(G, w_list, skip_axes):
 
     return xp.einsum(subscripts, G, *w_list, optimize=True)
 
-
 def xi_to_scale(xi, average_volume):
     """
     Convert `xi` to SasView volume-fraction `scale`.
@@ -45,3 +44,25 @@ def scale_to_xi(scale, average_volume):
     Convert SasView volume-fraction `scale` to `xi`.
     """
     return 1e-4 * scale / average_volume
+
+def smear_tensor_1d(G, w):
+    """
+    Smears G with a matrix of weights (1d q case)
+    """
+
+    # use CPU or GPU as appropriate
+    xp = get_array_module(G, w)
+
+    # smear tensor with weight matrix
+    return xp.einsum('i..., ij -> j...', G, w, optimize=True)
+
+def smear_tensor_2d(G, w):
+    """
+    Smears G with a 4 tensor of weights (2d q case)
+    """
+
+    # use CPU or GPU as appropriate
+    xp = get_array_module(G, w)
+
+    # smear tensor with weight matrix
+    return xp.einsum('ij..., ijkl -> kl...', G, w, optimize=True)
