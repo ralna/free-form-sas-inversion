@@ -46,11 +46,17 @@ def smear_tensor_1d(G, w):
 
 def smear_tensor_2d(G, w):
     """
-    Smears G with a 4 tensor of weights (2d q case)
+    Smears G with a vector of Gaussian weights (2d q case)
     """
 
     # use CPU or GPU as appropriate
     xp = get_array_module(G, w)
 
-    # smear tensor with weight matrix
-    return xp.einsum('ij..., ijkl -> kl...', G, w, optimize=True)
+    # reshape (nqx_calc, nqy_calc) to (nbins, nqx, nbins, nqy)
+    nbins = w.shape[0]
+    nqx = int(G.shape[0] / nbins)
+    nqy = int(G.shape[1] / nbins)
+    G_reshaped = xp.reshape(G, (nbins, nqx, nbins, nqy, *G.shape[2:]))
+
+    # smear tensor in x and y with Gaussian weight vector and normalize
+    return xp.einsum('ijkl...,i,k -> jl...', G_reshaped, w, w, optimize=True) / (xp.sum(w) ** 2)
