@@ -19,6 +19,18 @@ class Sphere(SASModel):
     param_names_scattering_intensity = ['r']
 
     @staticmethod
+    def compute_volume(param_list):
+
+        # extract parameters
+        r = param_list[0]
+
+        # use CPU or GPU as appropriate
+        xp = get_array_module(r)
+
+        # sphere volume
+        return 4/3 * xp.pi * r ** 3
+
+    @staticmethod
     def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
@@ -30,7 +42,7 @@ class Sphere(SASModel):
         print("INFO: using " + xp.__name__ + " for G computation")
 
         # sphere volume
-        V = 4/3 * xp.pi * r ** 3
+        V = Sphere.compute_volume(param_list)
 
         # sphere scattering amplitude
         qr = xp.outer(q, r)
@@ -45,14 +57,10 @@ class Sphere(SASModel):
     def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        r = param_list[0]
         w_r = w_list[0]
 
-        # use CPU or GPU as appropriate
-        xp = get_array_module(r, w_r)
-
         # sphere volume
-        V = 4/3 * xp.pi * r ** 3
+        V = Sphere.compute_volume(param_list)
 
         # average sphere volume
         return V @ w_r

@@ -21,6 +21,18 @@ class Ellipsoid(SASModel):
     param_names_scattering_intensity = ['rp', 're']
 
     @staticmethod
+    def compute_volume(param_list):
+
+        # extract parameters
+        rp, re = param_list[0], param_list[1]
+
+        # use CPU or GPU as appropriate
+        xp = get_array_module(rp, re)
+
+        # ellipsoid volume
+        return 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2
+
+    @staticmethod
     def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
@@ -32,7 +44,7 @@ class Ellipsoid(SASModel):
         print("INFO: using " + xp.__name__ + " for G computation")
 
         # ellipsoid volume
-        V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2
+        V = Ellipsoid.compute_volume(param_list)
 
         # u is Gauss-Legendre points in [0,1]
         z, w = gauss_legendre(xp) # in [-1,1]
@@ -60,14 +72,10 @@ class Ellipsoid(SASModel):
     def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        rp, re = param_list[0], param_list[1]
         w_rp, w_re = w_list[0], w_list[1]
 
-        # use CPU or GPU as appropriate
-        xp = get_array_module(rp, re, w_rp, w_re)
-
         # ellipsoid volume
-        V = 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2
+        V = Ellipsoid.compute_volume(param_list)
 
         # average ellipsoid volume
         return w_rp.T @ V @ w_re
