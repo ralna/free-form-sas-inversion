@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ffsi import CUPY_INSTALLED
 from ffsi.array_module import get_array_module
 from ffsi.models.sphere import Sphere
 from ffsi.models.cylinder import Cylinder
@@ -97,6 +98,10 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
     :param sld_solvent: scattering length density of the solvent, in 1e-6 A^-2
     :param sigma: smoothness regularization weight (`None` disables it)
     :return: an `InversionResult`; `scale` is the volume fraction `xi * <V> * 1e4`
+
+    Computation runs on the GPU automatically whenever CuPy is installed; inputs
+    may be plain numpy arrays (they are moved onto the GPU here), so callers need
+    no CuPy dependency of their own. Without CuPy it runs on the CPU.
     """
 
     # resolve a name or a SASModel subclass to (class, name)
@@ -105,6 +110,15 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
 
     # contrast: drho = sld - sld_solvent
     drho = float(sld) - float(sld_solvent)
+
+    # move the inputs onto the GPU when CuPy is available, so the array-module
+    # dispatch below (and everything downstream) runs on CuPy.
+    if CUPY_INSTALLED:
+        import cupy as cp
+
+        q = cp.asarray(q)
+        intensity = cp.asarray(intensity)
+        intensity_std = cp.asarray(intensity_std)
 
     # run on GPU when available: xp resolves to either cupy or numpy
     xp = get_array_module(q, intensity, intensity_std)
