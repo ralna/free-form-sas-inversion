@@ -16,6 +16,13 @@ def get_array_module(*args):
     else:
         return _numpy
 
+def to_backend(*arrays):
+    if CUPY_INSTALLED:
+        import cupy as cp
+
+        return tuple(cp.asarray(a) for a in arrays)
+    return arrays
+
 def get_science_module(*args):
     if CUPY_INSTALLED:
         import cupyx.scipy as cps
