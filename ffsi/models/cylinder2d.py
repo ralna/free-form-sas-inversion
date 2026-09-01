@@ -23,6 +23,17 @@ class Cylinder2D(SASModel):
     param_names_scattering_intensity = ['l', 'r', 'theta', 'phi']
 
     @staticmethod
+    def compute_volume(param_list):
+        # extract parameters
+        l, r = param_list[0], param_list[1]
+
+        # use CPU or GPU as appropriate
+        xp = get_array_module(l, r)
+
+        # cylinder volume
+        return xp.pi * l[:, None] * r[None, :] ** 2
+
+    @staticmethod
     def compute_scattering_intensity(q_list, param_list, drho):
 
         # extract parameters
@@ -36,7 +47,7 @@ class Cylinder2D(SASModel):
         print("INFO: using " + xp.__name__ + " and " + xps.__name__ + " for G computation")
 
         # cylinder volume
-        V = xp.pi * l[:,None] * r[None,:] ** 2
+        V = Cylinder2D.compute_volume(param_list)
 
         # coordinate transformation
         sint_cosp = xp.outer(xp.sin(theta), xp.cos(phi))
@@ -62,14 +73,10 @@ class Cylinder2D(SASModel):
     def compute_average_volume(param_list, w_list):
 
         # extract parameters
-        l, r = param_list[0], param_list[1]
         w_l, w_r = w_list[0], w_list[1]
 
-        # use CPU or GPU as appropriate
-        xp = get_array_module(l, r, w_l, w_r)
-
         # cylinder volume
-        V = xp.pi * l[:,None] * r[None,:] ** 2
+        V = Cylinder2D.compute_volume(param_list)
 
         # average cylinder volume
         return w_l.T @ V @ w_r

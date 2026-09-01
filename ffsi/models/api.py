@@ -1,39 +1,58 @@
 """
 Public API for free-form SAS inversion.
 """
+import importlib.util
 from dataclasses import dataclass, field
+from importlib import import_module
+from inspect import getmembers, isabstract, isclass
 
 import numpy as np
 
-from ffsi import CUPY_INSTALLED
-from ffsi.array_module import get_array_module
-from ffsi.models.sphere import Sphere
-from ffsi.models.cylinder import Cylinder
-from ffsi.models.ellipsoid import Ellipsoid
+from ffsi.array_module import get_array_module, to_backend
+from ffsi.models.basemodel import SASModel
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
 
-# Models usable through invert()
-_MODELS = {
-    "sphere": Sphere,
-    "cylinder": Cylinder,
-    "ellipsoid": Ellipsoid,
-}
+# Model names available through invert(), for error messages only
+_MODEL_NAMES = ("sphere", "cylinder", "cylinder2d", "ellipsoid", "ellipsoid2d")
 
 
 def _resolve_model(model):
     """
     Resolve `model` (a case-insensitive name or a `SASModel` subclass) to
     `(class, name)`.
+
+    The model class is imported lazily from its own module `ffsi.models.<name>`
+    (module name == class name lowercased), so only the requested model is
+    loaded rather than every model up front.
     """
     name = (model if isinstance(model, str) else model.__name__).lower()
-    try:
-        return _MODELS[name], name
-    except KeyError:
+
+    # return a proper error
+    if importlib.util.find_spec(f"ffsi.models.{name}") is None:
         raise ValueError(
-            "Unknown model '{}', available models: {}".format(name, ", ".join(_MODELS))
-        ) from None
+            "Unknown model '{}', available models: {}".format(
+                name, ", ".join(_MODEL_NAMES)
+            )
+        )
+
+    module = import_module(f"ffsi.models.{name}")
+
+    classes = getmembers(
+        module,
+        lambda m: (
+            isclass(m)
+            and not isabstract(m)
+            and issubclass(m, SASModel)
+            and m is not SASModel
+            and m.__module__ == module.__name__
+        ),
+    )
+    if not classes:
+        raise ValueError(f"Module 'ffsi.models.{name}' defines no SASModel subclass")
+
+    return classes[0][1], name
 
 
 @dataclass
@@ -83,6 +102,18 @@ def _asnumpy(a):
     return a.get() if hasattr(a, "get") else np.asarray(a)
 
 
+def xi_to_scale(xi, average_volume):
+    """
+    SasView volume-fraction `scale`
+    """
+    return xi * average_volume * 1e4
+
+
+def scale_to_xi(scale, average_volume):
+    """Inverse of `xi_to_scale`: ``scale / (<V> * 1e4)``."""
+    return scale / (average_volume * 1e4)
+
+
 def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None):
     """
     Free-form inversion of 1D SAS data.
@@ -111,16 +142,11 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
     # contrast: drho = sld - sld_solvent
     drho = float(sld) - float(sld_solvent)
 
-    # move the inputs onto the GPU when CuPy is available, so the array-module
-    # dispatch below (and everything downstream) runs on CuPy.
-    if CUPY_INSTALLED:
-        import cupy as cp
+    # move host inputs onto the compute backend (GPU when CuPy is available)
+    # array-module dispatch below and everything downstream run on that backend
+    q, intensity, intensity_std = to_backend(q, intensity, intensity_std)
 
-        q = cp.asarray(q)
-        intensity = cp.asarray(intensity)
-        intensity_std = cp.asarray(intensity_std)
-
-    # run on GPU when available: xp resolves to either cupy or numpy
+    # xp resolves to cupy when the inputs are on the GPU, else numpy
     xp = get_array_module(q, intensity, intensity_std)
     q = xp.ascontiguousarray(q, dtype=float)
     intensity = xp.asarray(intensity, dtype=float)
@@ -147,7 +173,7 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
                            for name in model_class.param_names_average_volume]
     average_volume = float(model_class.compute_average_volume(volume_params, volume_weights_list))
 
-    scale = xi * average_volume * 1e4
+    scale = xi_to_scale(xi, average_volume)
 
     # package results as host numpy as, plotters and the GUI
     # cannot take cupy arrays

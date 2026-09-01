@@ -25,7 +25,7 @@ class SASModel(ABC):
         :param drho: difference between scattering length densities
         :return: the scattering intensity (Green's tensor) `G`
         """
-        pass
+        raise NotImplementedError
 
     """
     Names of parameters used for computing the average volume `V`
@@ -43,4 +43,15 @@ class SASModel(ABC):
         :param w_list: `list` of parameter distributions
         :return: the average volume `V`
         """
-        pass
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def compute_volume(param_list):
+        """
+        Compute the volume `V` for each combination of model parameters
+
+        :param param_list: `list` of model parameters
+        :return: the volume `V`
+        """
+        raise NotImplementedError
