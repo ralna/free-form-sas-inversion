@@ -1,5 +1,5 @@
 """
-Tensor multiplication utility functions
+Tensor multiplication and other utility functions
 
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
@@ -32,3 +32,16 @@ def contract_tensor(G, w_list, skip_axes):
     subscripts = f"{g_str},{w_str}->{out_str}"
 
     return xp.einsum(subscripts, G, *w_list, optimize=True)
+
+
+def xi_to_scale(xi, average_volume):
+    """
+    Convert `xi` to SasView volume-fraction `scale`.
+    """
+    return (xi * average_volume) / 1e-4
+
+def scale_to_xi(scale, average_volume):
+    """
+    Convert SasView volume-fraction `scale` to `xi`.
+    """
+    return 1e-4 * scale / average_volume

@@ -8,7 +8,7 @@ import time
 import numpy as np
 from ffsi.models.ellipsoid2d import Ellipsoid2D
 from ffsi.optimize_galahad import optimize
-from ffsi.utils import contract_tensor
+from ffsi.utils import contract_tensor, scale_to_xi
 
 # for simulating distributions
 from ffsi.crazy_distributions import crazy_distribution
@@ -89,7 +89,7 @@ sasmodel = Ellipsoid2D()
 w_true_list = [w_rp_true, w_re_true]
 v_param_list = [rp, re]
 V_ave = sasmodel.compute_average_volume(v_param_list, w_true_list)
-xi_true = 1e-4 * scale_true / V_ave
+xi_true = scale_to_xi(scale_true, V_ave)
 print('xi_true: %.2e' % xi_true)
 
 # Calculate required memory for G

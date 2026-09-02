@@ -11,7 +11,7 @@ import numpy as np
 from ffsi.array_module import get_array_module, to_backend
 from ffsi.models.basemodel import SASModel
 from ffsi.optimize_galahad import optimize
-from ffsi.utils import contract_tensor
+from ffsi.utils import contract_tensor, xi_to_scale
 
 
 # Model names available through invert(), for error messages only
@@ -100,18 +100,6 @@ def _build_grid(spec, xp):
 def _asnumpy(a):
     """Bring an array to the host as numpy (no-op if it already is)."""
     return a.get() if hasattr(a, "get") else np.asarray(a)
-
-
-def xi_to_scale(xi, average_volume):
-    """
-    SasView volume-fraction `scale`
-    """
-    return xi * average_volume * 1e4
-
-
-def scale_to_xi(scale, average_volume):
-    """Inverse of `xi_to_scale`: ``scale / (<V> * 1e4)``."""
-    return scale / (average_volume * 1e4)
 
 
 def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None):
