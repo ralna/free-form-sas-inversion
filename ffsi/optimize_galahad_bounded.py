@@ -152,7 +152,7 @@ def optimize_bounded(G, I_data, I_data_std, xi_lb, xi_ub, b_lb, b_ub, sigma=None
                 res = eps.reshape(-1)
             else: # regularisation terms sigma(w[i+1]-w[i])
                 reg = [sigma * xp.diff(w) for w in w_list]
-                res = xp.concat((eps.reshape(-1),*reg))
+                res = xp.concatenate((eps.reshape(-1), *reg))
 
             # move residual to CPU if required
             if xp.__name__ == 'cupy':
@@ -189,8 +189,8 @@ def optimize_bounded(G, I_data, I_data_std, xi_lb, xi_ub, b_lb, b_ub, sigma=None
                 jac = deps
             else: # regularization term derivatives (sparse)
                 dreg1 = [sigma * xp.ones(n-1) for n in p_dims]  # w[i+1] terms
-                dreg2 = [-sigma * xp.ones(n-1) for n in p_dims] # -w[i] terms
-                jac = xp.concat((deps,*dreg1,*dreg2))
+                dreg2 = [-sigma * xp.ones(n-1) for n in p_dims]  # -w[i] terms
+                jac = xp.concatenate((deps, *dreg1, *dreg2))
 
             # move Jacobian to CPU if required
             if xp.__name__ == 'cupy':
