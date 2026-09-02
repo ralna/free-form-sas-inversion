@@ -6,7 +6,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models import Sphere
+from ffsi.models.sphere import Sphere
 from ffsi.optimize_galahad_bounded import optimize_bounded
 from ffsi.utils import contract_tensor
 

@@ -5,7 +5,7 @@ Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
 import numpy as np
-from ffsi.models import Cylinder
+from ffsi.models.cylinder import Cylinder
 from ffsi.optimize_galahad import optimize
 from ffsi.sensitivity_analysis import sensitivity
 from ffsi.utils import contract_tensor

@@ -6,7 +6,7 @@ Author: Jaroslav Fowkes (STFC)
 """
 import time
 import cupy as cp
-from ffsi.models import Sphere
+from ffsi.models.sphere import Sphere
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor
 
