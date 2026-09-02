@@ -16,16 +16,27 @@ def get_array_module(*args):
     else:
         return _numpy
 
-def to_backend(*arrays):
-    if CUPY_INSTALLED:
-        import cupy as cp
-
-        return tuple(cp.asarray(a) for a in arrays)
-    return arrays
-
 def get_science_module(*args):
     if CUPY_INSTALLED:
         import cupyx.scipy as cps
         return cps.get_array_module(*args)
     else:
         return _scipy
+
+def to_device(*arrays):
+    """
+    Bring arrays from the host to the device.
+    """
+    if CUPY_INSTALLED:
+        import cupy as cp
+        return (cp.asarray(a) for a in arrays)
+    return arrays
+
+def from_device(array):
+    """
+    Bring an array from the device to the host.
+    """
+    if CUPY_INSTALLED:
+        import cupy as cp
+        return cp.asnumpy(array)
+    return array

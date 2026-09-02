@@ -8,7 +8,7 @@ from inspect import getmembers, isabstract, isclass
 
 import numpy as np
 
-from ffsi.array_module import get_array_module, to_backend
+from ffsi.array_module import get_array_module, to_device, from_device
 from ffsi.models.basemodel import SASModel
 from ffsi.optimize_galahad import optimize
 from ffsi.utils import contract_tensor, xi_to_scale
@@ -97,11 +97,6 @@ def _build_grid(spec, xp):
     return xp.linspace(float(lo), float(hi), int(nbins))
 
 
-def _asnumpy(a):
-    """Bring an array to the host as numpy (no-op if it already is)."""
-    return a.get() if hasattr(a, "get") else np.asarray(a)
-
-
 def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None):
     """
     Free-form inversion of 1D SAS data.
@@ -132,7 +127,7 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
 
     # move host inputs onto the compute backend (GPU when CuPy is available)
     # array-module dispatch below and everything downstream run on that backend
-    q, intensity, intensity_std = to_backend(q, intensity, intensity_std)
+    q, intensity, intensity_std = to_device(q, intensity, intensity_std)
 
     # xp resolves to cupy when the inputs are on the GPU, else numpy
     xp = get_array_module(q, intensity, intensity_std)
@@ -161,9 +156,10 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
                            for name in model_class.param_names_average_volume]
     average_volume = float(model_class.compute_average_volume(volume_params, volume_weights_list))
 
+    # convert xi to SasView scale
     scale = xi_to_scale(xi, average_volume)
 
-    # package results as host numpy as, plotters and the GUI
+    # package results as host numpy as plotters and the GUI
     # cannot take cupy arrays
     distributions = []
     for name, grid, weights in zip(param_names, param_list, w_list):
@@ -171,12 +167,12 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
         if len(param_names) == 1:
             volume = model_class.compute_volume(param_list)
             weighted = weights * volume
-            volume_weights = _asnumpy(weighted / xp.sum(weighted))
+            volume_weights = from_device(weighted / xp.sum(weighted))
         distributions.append(
             ParamDistribution(
                 name=name,
-                grid=_asnumpy(grid),
-                weights=_asnumpy(weights),
+                grid=from_device(grid),
+                weights=from_device(weights),
                 volume_weights=volume_weights,
             )
         )
@@ -186,8 +182,8 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
         xi=xi,
         background=background,
         distributions=distributions,
-        theory=_asnumpy(theory),
-        residuals=_asnumpy(residuals),
+        theory=from_device(theory),
+        residuals=from_device(residuals),
         chi2=chi2,
         average_volume=average_volume,
         drho=drho,
