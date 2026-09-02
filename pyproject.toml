@@ -20,7 +20,7 @@ maintainers = [
 ]
 description = "A package for the free-form inversion of Small Angle Scattering problems arising from X-ray and Neutron sources"
 readme = "README.md"
-license = {text = "BSD-3-Clause"}
+license = "BSD-3-Clause"
 keywords = ["physics", "optimization"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -28,7 +28,6 @@ classifiers = [
     "Environment :: GPU",
     "Environment :: GPU :: NVIDIA CUDA",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: Unix",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",  
