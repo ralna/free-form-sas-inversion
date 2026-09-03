@@ -44,5 +44,5 @@ Download = "https://github.com/ralna/free-form-sas-inversion/releases/"
 Documentation = "https://ralna.github.io/free-form-sas-inversion/"
 "Source Code" = "https://github.com/ralna/free-form-sas-inversion/"
 
-[tool.setuptools]
-packages = ["ffsi"]
+[tool.setuptools.packages.find]
+include = ["ffsi*"]
