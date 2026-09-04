@@ -29,6 +29,11 @@ from ffsi.array_module import get_array_module
 from ffsi.utils import contract_tensor
 
 
+# GALAHAD's C binding (check_array_int in galahad_python.h) requires index/cohort
+# arrays to be exactly NPY_LONG -- the C `long` type, which is 64-bit on Linux/macOS
+# but 32-bit on Windows.
+GALAHAD_INT = np.dtype("l")
+
 def optimize(G, I_data, I_data_std, sigma=None):
 
     # use CPU or GPU as appropriate
@@ -189,12 +194,9 @@ def optimize(G, I_data, I_data_std, sigma=None):
         m_r = np.prod(q_dims) + np.sum(np.array(p_dims)-1)
     m_c = len(p_dims)
 
-    # set GALAHAD SNLS cohorts
-    # GALAHAD's Python interface is built with 64-bit integers and rejects any
-    # other int width; numpy's default int is 32-bit on Windows (LLP64), so
-    # cast the index/cohort arrays to int64 explicitly for cross-platform safety.
+    # set GALAHAD SNLS cohorts (cast to C long / NPY_LONG)
     ch_list = [i * np.ones(n, dtype=int) for i,n in enumerate(p_dims)]
-    cohort = np.concat((np.array([-1, -1]), *ch_list)).astype(np.int64)
+    cohort = np.concat((np.array([-1, -1]), *ch_list)).astype(GALAHAD_INT)
 
     # set GALAHAD SNLS Jacobian info
     if sigma is None: # no regularization
@@ -219,9 +221,9 @@ def optimize(G, I_data, I_data_std, sigma=None):
         for st, dim in zip(starts, p_dims):
             Jr_reg1_col.append(np.arange(st+1, st+dim))
             Jr_reg2_col.append(np.arange(st, st+dim-1))
-        # combined derivative (int64 for GALAHAD; see cohort note above)
-        Jr_row = np.concat((Jr_eps_row, *Jr_reg1_row, *Jr_reg2_row)).astype(np.int64)
-        Jr_col = np.concat((Jr_eps_col, *Jr_reg1_col, *Jr_reg2_col)).astype(np.int64)
+        # combined derivative (cast to C long / NPY_LONG)
+        Jr_row = np.concat((Jr_eps_row, *Jr_reg1_row, *Jr_reg2_row)).astype(GALAHAD_INT)
+        Jr_col = np.concat((Jr_eps_col, *Jr_reg1_col, *Jr_reg2_col)).astype(GALAHAD_INT)
     Jr_ptr_ne = 0
     Jr_ptr = None
 
