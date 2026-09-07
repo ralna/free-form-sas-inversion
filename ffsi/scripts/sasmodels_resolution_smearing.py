@@ -19,7 +19,7 @@ class Test1DSphere:
         """
         Initialise 1D free-form sphere model
         """
-        from ffsi.models import Sphere
+        from ffsi.models.sphere import Sphere
         self.model = Sphere()
 
     def _eval_sphere_smeared(self, pars, resolution):
@@ -139,7 +139,7 @@ class Test2DCylinder:
         b_true = 2.2e-4
 
         # instantiate 2D cylinder model
-        from ffsi.models import Cylinder2D
+        from ffsi.models.cylinder2d import Cylinder2D
         sasmodel = Cylinder2D()
 
         # compute the ground truth of xi
