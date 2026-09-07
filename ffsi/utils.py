@@ -33,18 +33,6 @@ def contract_tensor(G, w_list, skip_axes):
 
     return xp.einsum(subscripts, G, *w_list, optimize=True)
 
-def xi_to_scale(xi, average_volume):
-    """
-    Convert `xi` to SasView volume-fraction `scale`.
-    """
-    return (xi * average_volume) / 1e-4
-
-def scale_to_xi(scale, average_volume):
-    """
-    Convert SasView volume-fraction `scale` to `xi`.
-    """
-    return 1e-4 * scale / average_volume
-
 def smear_tensor_1d(G, w):
     """
     Smears G with a matrix of weights (1d q case)
@@ -72,3 +60,15 @@ def smear_tensor_2d(G, w):
 
     # smear tensor in x and y with Gaussian weight vector and normalize
     return xp.einsum('ijkl...,i,k -> jl...', G_reshaped, w, w, optimize=True) / (xp.sum(w) ** 2)
+
+def xi_to_scale(xi, average_volume):
+    """
+    Convert `xi` to SasView volume-fraction `scale`.
+    """
+    return (xi * average_volume) / 1e-4
+
+def scale_to_xi(scale, average_volume):
+    """
+    Convert SasView volume-fraction `scale` to `xi`.
+    """
+    return 1e-4 * scale / average_volume
