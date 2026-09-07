@@ -7,6 +7,7 @@ from sasmodels.data import Data2D
 from sasmodels.resolution import TEST_PARS_PINHOLE_SPHERE, TEST_DATA_PINHOLE_SPHERE
 from sasmodels.resolution import TEST_PARS_SLIT_SPHERE, TEST_DATA_SLIT_SPHERE
 
+from ffsi.utils import scale_to_xi
 
 class Test1DSphere:
     """
@@ -35,7 +36,7 @@ class Test1DSphere:
         # convert scale to xi
         w_list = [np.array([1.0,0.0])] # dummy second parameter of 0
         V_ave = self.model.compute_average_volume(param_list, w_list)
-        xi = 1e-4 * pars['scale'] / V_ave
+        xi = scale_to_xi(pars['scale'], V_ave)
 
         # compute smeared G
         G = self.model.compute_smeared_scattering_intensity([resolution.q_calc], resolution.weight_matrix, param_list, drho)
@@ -146,7 +147,7 @@ class Test2DCylinder:
         vol_param_list = [l, r]
         vol_w_true_list = [w_l_true, w_r_true]
         V_ave = sasmodel.compute_average_volume(vol_param_list, vol_w_true_list)
-        xi_true = 1e-4 * scale_true / V_ave
+        xi_true = scale_to_xi(scale_true, V_ave)
 
         # compute true G
         G = sasmodel.compute_scattering_intensity(q_list, param_list, drho)
