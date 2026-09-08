@@ -97,7 +97,8 @@ def _build_grid(spec, xp):
     return xp.linspace(float(lo), float(hi), int(nbins))
 
 
-def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None):
+def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None,
+           q_calc=None, resolution_weights=None):
     """
     Free-form inversion of 1D SAS data.
 
@@ -111,6 +112,12 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
         with `sld_solvent` it gives the contrast `drho = sld - sld_solvent`
     :param sld_solvent: scattering length density of the solvent, in 1e-6 A^-2
     :param sigma: smoothness regularization weight (`None` disables it)
+    :param q_calc: extended q grid on which to evaluate for resolution smearing;
+    must be given together with `resolution_weights`. When `None`, no smearing is applied.
+    :param resolution_weights: resolution weight matrix of shape
+        `(len(q_calc), len(q))` (e.g. sasmodels `Pinhole1D`/`Slit1D`
+        `weight_matrix`). When supplied with `q_calc`, `G` is built on `q_calc`
+        and smeared back onto the measured `q`; otherwise the unsmeared path runs.
     :return: an `InversionResult`; `scale` is the volume fraction `xi * <V> * 1e4`
 
     Computation runs on the GPU automatically whenever CuPy is installed; inputs
@@ -137,8 +144,17 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
     # build grids on the same backend
     param_list = [_build_grid(grids[name], xp) for name in param_names]
 
-    # scattering intensity (Green's tensor) and inversion
-    G = model_class.compute_scattering_intensity([q], param_list, drho)
+    # resolution smearing: build G on the extended q_calc grid and smear it back
+    # onto the measured q with the resolution weight matrix.
+    smearing = q_calc is not None and resolution_weights is not None
+    if smearing:
+        q_calc, resolution_weights = to_device(q_calc, resolution_weights)
+        q_calc = xp.ascontiguousarray(q_calc, dtype=float)
+        resolution_weights = xp.asarray(resolution_weights, dtype=float)
+        G = model_class.compute_smeared_scattering_intensity(
+            [q_calc], resolution_weights, param_list, drho)
+    else:
+        G = model_class.compute_scattering_intensity([q], param_list, drho)
     xi, background, w_opt_list = optimize(G, intensity, intensity_std, sigma=sigma)
     xi, background = float(xi), float(background)
     # GALAHAD returns numpy weights; move them onto G's backend to reconstruct
