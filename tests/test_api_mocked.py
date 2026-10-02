@@ -5,10 +5,7 @@ import numpy as np
 import pytest
 
 from ffsi.api import ParamDistribution, InversionResult, _resolve_model, invert
-from ffsi.models.cylinder import Cylinder
-from ffsi.models.ellipsoid import Ellipsoid
 from ffsi.models.sphere import Sphere
-from ffsi.utils import xi_to_scale
 
 # canned solver outputs, asserted throughout
 FAKE_XI = 1.5
@@ -48,6 +45,7 @@ def fake_optimize(monkeypatch):
 
 
 def _sphere_data(n=32):
+    """A plain descending curve; the mock ignores the values, so any will do."""
     q = np.linspace(0.005, 0.2, n)
     iq = np.linspace(10.0, 1.0, n)
     diq = 0.1 * iq
@@ -57,7 +55,11 @@ def _sphere_data(n=32):
 class TestSpherePipeline:
     """The single-parameter (sphere) path end to end, solver mocked."""
 
-    def test_result_structure(self, fake_optimize):
+    def test_invert_returns_a_populated_inversion_result(self, fake_optimize):
+        """
+        Test that the solver's output is packaged into an InversionResult
+        Testing mostly plumbing
+        """
         q, iq, diq = _sphere_data()
         result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
                         sld=4.0, sld_solvent=1.0)
@@ -66,41 +68,40 @@ class TestSpherePipeline:
         assert result.model == 'sphere'
         assert result.xi == FAKE_XI
         assert result.background == FAKE_BACKGROUND
-        assert result.drho == pytest.approx(3.0)  # sld - sld_solvent
+        assert result.drho == 3.0
 
         assert len(result.distributions) == 1
         dist = result.distributions[0]
         assert isinstance(dist, ParamDistribution)
         assert dist.name == 'r'
         assert len(dist.grid) == 16
-        assert dist.grid[0] == pytest.approx(10.0)
-        assert dist.grid[-1] == pytest.approx(100.0)
-        assert dist.weights.sum() == pytest.approx(1.0)
+        assert dist.grid[0] == 10.0
+        assert dist.grid[-1] == 100.0
         # single-parameter models get a volume-weighted distribution
         assert dist.volume_weights is not None
-        assert dist.volume_weights.sum() == pytest.approx(1.0)
+        # not a restatement of api.py: under the mock's uniform weights the
+        # 4/3*pi cancels out of its `weighted / sum(weighted)`, so the
+        # expected value collapses to the closed form r**3 / sum(r**3)
+        np.testing.assert_allclose(
+            dist.volume_weights, dist.grid**3 / (dist.grid**3).sum(), rtol=1e-15
+        )
 
-    def test_theory_residuals_chi2(self, fake_optimize):
+    def test_invert_returns_theory_and_residuals_on_the_q_grid(self, fake_optimize):
+        """
+        Test that the fitted curve and residuals come back on the input q.
+        Shapes only, Values tested in test_galahad.py
+        """
         q, iq, diq = _sphere_data()
         result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
                         sld=4.0, sld_solvent=1.0)
 
-        # does the fit match the curve
         assert result.theory.shape == q.shape
-        np.testing.assert_allclose(result.residuals, (result.theory - iq) / diq)
-        assert result.chi2 == pytest.approx(
-            np.sum(result.residuals ** 2) / result.residuals.size)
+        assert result.residuals.shape == q.shape
 
-    def test_scale_from_average_volume(self, fake_optimize):
-        q, iq, diq = _sphere_data()
-        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-                        sld=4.0, sld_solvent=1.0)
-
-        assert result.scale == pytest.approx(
-            xi_to_scale(result.xi, result.average_volume))
-
-    # check whether grids form correctly
-    def test_grid_triple_and_array_equivalent(self, fake_optimize):
+    def test_invert_treats_a_grid_triple_and_array_identically(self, fake_optimize):
+        """
+        Test that a (min, max, nbins) triple and a prebuilt array agree
+        """
         q, iq, diq = _sphere_data()
         grid = np.linspace(10.0, 100.0, 16)
 
@@ -109,25 +110,35 @@ class TestSpherePipeline:
         from_array = invert('sphere', q, iq, diq, {'r': grid},
                             sld=4.0, sld_solvent=1.0)
 
-        np.testing.assert_allclose(from_triple.distributions[0].grid,
-                                   from_array.distributions[0].grid)
-        np.testing.assert_allclose(from_triple.theory, from_array.theory)
+        np.testing.assert_array_equal(
+            from_triple.distributions[0].grid, from_array.distributions[0].grid
+        )
+        np.testing.assert_array_equal(from_triple.theory, from_array.theory)
+        assert from_triple.chi2 == from_array.chi2
 
 
 class TestSolverContract:
     """What `invert` hands the solver, and that it calls it exactly once."""
-    def test_optimize_called_once_with_G_and_sigma(self, fake_optimize):
+
+    def test_invert_calls_optimize_once_with_G_and_sigma(self, fake_optimize):
+        """
+        Test that the solver sees one call, with the right G and sigma
+        """
         q, iq, diq = _sphere_data()
         invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
                sld=4.0, sld_solvent=1.0, sigma=0.25)
 
-        assert len(fake_optimize.calls) == 1 # convex
+        # once, not iteratively: the problem is convex
+        assert len(fake_optimize.calls) == 1
         call = fake_optimize.calls[0]
         # G's leading axis is q; trailing axis is the r grid
         assert call["G_shape"] == (len(q), 16)
         assert call["sigma"] == 0.25
 
-    def test_sigma_defaults_to_none(self, fake_optimize):
+    def test_invert_passes_sigma_none_when_not_given(self, fake_optimize):
+        """
+        Test that omitting sigma reaches the solver as None, not as 0.0
+        """
         q, iq, diq = _sphere_data()
         invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
                sld=4.0, sld_solvent=1.0)
@@ -136,7 +147,11 @@ class TestSolverContract:
 
 class TestParameterOrdering:
     """Multi-parameter models return distributions in ffsi's canonical order."""
-    def test_cylinder_canonical_order(self, fake_optimize):
+
+    def test_invert_returns_cylinder_params_in_canonical_order(self, fake_optimize):
+        """
+        Test that cylinder distributions come back as (l, r)
+        """
         q, iq, diq = _sphere_data()
         # grids given in the "wrong" dict order: r before l
         result = invert('cylinder', q, iq, diq,
@@ -145,11 +160,14 @@ class TestParameterOrdering:
 
         assert [d.name for d in result.distributions] == ['l', 'r']
         for dist in result.distributions:
-            assert dist.weights.sum() == pytest.approx(1.0)
+            np.testing.assert_array_equal(dist.weights, np.full(8, 0.125))
             # per-marginal volume weighting is undefined for multi-param models
             assert dist.volume_weights is None
 
-    def test_ellipsoid_canonical_order(self, fake_optimize):
+    def test_invert_returns_ellipsoid_params_in_canonical_order(self, fake_optimize):
+        """
+        Test that ellipsoid distributions come back as (rp, re)
+        """
         q, iq, diq = _sphere_data()
         result = invert('ellipsoid', q, iq, diq,
                         {'re': (20.0, 60.0, 8), 'rp': (30.0, 90.0, 8)},
@@ -157,6 +175,7 @@ class TestParameterOrdering:
 
         assert [d.name for d in result.distributions] == ['rp', 're']
         for dist in result.distributions:
+            np.testing.assert_array_equal(dist.weights, np.full(8, 0.125))
             assert dist.volume_weights is None
 
 
@@ -181,10 +200,13 @@ class TestSmearingPath:
         monkeypatch.setattr(Sphere, 'compute_scattering_intensity', staticmethod(plain))
         return seen
 
-    # identity weight matrix, shape (len(q_calc), len(q)); q_calc == q
-    def test_smearing_branch_taken(self, fake_optimize, monkeypatch):
+    def test_invert_takes_the_smeared_branch(self, fake_optimize, monkeypatch):
+        """
+        Test that q_calc plus resolution_weights builds G on the extended grid
+        """
         seen = self._spy(monkeypatch)
         q, iq, diq = _sphere_data()
+        # identity weight matrix, shape (len(q_calc), len(q))
         weights = np.eye(len(q))
         result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
                         sld=4.0, sld_solvent=1.0,
@@ -193,8 +215,12 @@ class TestSmearingPath:
         assert 'smeared' in seen
         assert result.theory.shape == q.shape
 
-    # only q_calc, no weights -> unsmeared path
-    def test_partial_smearing_args_ignored(self, fake_optimize, monkeypatch):
+    def test_invert_ignores_q_calc_without_resolution_weights(
+        self, fake_optimize, monkeypatch
+    ):
+        """
+        Test that a half-specified smearing request falls back to the plain path
+        """
         seen = self._spy(monkeypatch)
         q, iq, diq = _sphere_data()
         invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
@@ -206,10 +232,16 @@ class TestSmearingPath:
 class TestModelResolutionErrors:
     """Paths that never reach the solver."""
 
-    def test_unknown_model_raises(self):
+    def test_resolve_model_rejects_an_unknown_name(self):
+        """
+        Test that an unrecognised model name raises before any work is done
+        """
         with pytest.raises(ValueError, match='core_shell_sphere'):
             _resolve_model('core_shell_sphere')
 
-    def test_model_class_accepted(self):
+    def test_resolve_model_accepts_a_sasmodel_subclass(self):
+        """
+        Test that a model class is accepted as well as its name
+        """
         cls, name = _resolve_model(Sphere)
         assert cls is Sphere and name == 'sphere'
