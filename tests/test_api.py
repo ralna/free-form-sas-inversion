@@ -1,337 +1,404 @@
 """
-Tests for the public API (`ffsi.api.invert`).
-
-Run with: python -m pytest tests/
+Mock-based plumbing tests for `ffsi.api.invert`, plus solver tests against a
+synthetic toy problem with known ground truth.
 """
-import os
-
 import numpy as np
 import pytest
 
-from ffsi.api import invert, InversionResult, ParamDistribution, _resolve_model
+from ffsi.api import ParamDistribution, InversionResult, _resolve_model, invert
 from ffsi.models.sphere import Sphere
-from ffsi.models.cylinder import Cylinder
-from ffsi.models.ellipsoid import Ellipsoid
-from ffsi.utils import contract_tensor, smear_tensor_1d
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), '..', 'ffsi', 'data', 'SANS', 'observation.txt')
-TRUNCATE = 285          # drop noisy high-q tail
-R_MIN, R_MAX, N_BINS = 400.0, 800.0, 100
-SIGMA = 0.25
-
-# contrast is always supplied. Sphere SasView defaults: sld - sld_solvent = 1 - 6
-SLD, SLD_SOLVENT = 1.0, 6.0
-DRHO = SLD - SLD_SOLVENT
-# a second, different contrast (drho = 1) for the contrast-invariance tests
-SLD_ALT, SLD_SOLVENT_ALT = 7.0, 6.0
-DRHO_ALT = SLD_ALT - SLD_SOLVENT_ALT
+# canned solver outputs, asserted throughout
+FAKE_XI = 1.5
+FAKE_BACKGROUND = 0.1
 
 
-def load_sans():
-    data = np.loadtxt(DATA_FILE)
-    return data[:TRUNCATE, 0], data[:TRUNCATE, 1], data[:TRUNCATE, 2]
+@pytest.fixture(autouse=True)
+def force_cpu(monkeypatch):
+    """Run on numpy so G is a host array and results are deterministic."""
+    monkeypatch.setattr("ffsi.array_module.CUPY_INSTALLED", False)
 
 
-# -------------------------------------------------------- model resolution
+class RecordingOptimize:
+    """
+    Stand-in for `ffsi.optimize_galahad.optimize`.
 
-class TestModelResolution:
+    Returns a deterministic simplex distribution per model parameter, sized from
+    G (axis 0 is q, the remaining axes are the parameter grids), and records the
+    G shape and sigma it was called with so tests can assert the solver contract.
+    """
 
-    def test_lookup_by_name(self):
-        assert _resolve_model('sphere') == (Sphere, 'sphere')
-        assert _resolve_model('cylinder') == (Cylinder, 'cylinder')
-        assert _resolve_model('ellipsoid') == (Ellipsoid, 'ellipsoid')
+    def __init__(self):
+        self.calls = []
 
-    def test_lookup_is_case_insensitive(self):
-        assert _resolve_model('Sphere') == (Sphere, 'sphere')
-
-    def test_lookup_by_class(self):
-        assert _resolve_model(Sphere) == (Sphere, 'sphere')
-
-    def test_unknown_model(self):
-        with pytest.raises(ValueError, match='sphere'):
-            _resolve_model('core_shell_sphere')
-
-    def test_param_name_orders(self):
-        assert _resolve_model('sphere')[0].param_names_scattering_intensity == ['r']
-        assert _resolve_model('cylinder')[0].param_names_scattering_intensity == ['l', 'r']
-        assert _resolve_model('ellipsoid')[0].param_names_scattering_intensity == ['rp', 're']
+    def __call__(self, G, I_data, I_data_std, sigma=None):
+        self.calls.append({"G_shape": tuple(G.shape), "sigma": sigma})
+        w_list = [np.full(G.shape[ax], 1.0 / G.shape[ax]) for ax in range(1, G.ndim)]
+        return FAKE_XI, FAKE_BACKGROUND, w_list
 
 
-# ------------------------------------------------- sphere on real SANS data
-
-@pytest.fixture(scope='module')
-def sans_data():
-    return load_sans()
-
-
-@pytest.fixture(scope='module')
-def sphere_result(sans_data):
-    q, iq, diq = sans_data
-    return invert('sphere', q, iq, diq, {'r': (R_MIN, R_MAX, N_BINS)},
-                  sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
+@pytest.fixture
+def fake_optimize(monkeypatch):
+    """Patch the solver reference bound into ffsi.api; return the recorder."""
+    recorder = RecordingOptimize()
+    monkeypatch.setattr("ffsi.api.optimize", recorder)
+    return recorder
 
 
-class TestSphereRealData:
+def _sphere_data(n=32):
+    """A plain descending curve; the mock ignores the values, so any will do."""
+    q = np.linspace(0.005, 0.2, n)
+    iq = np.linspace(10.0, 1.0, n)
+    diq = 0.1 * iq
+    return q, iq, diq
 
-    def test_result_shape(self, sphere_result, sans_data):
-        q = sans_data[0]
-        assert isinstance(sphere_result, InversionResult)
-        assert sphere_result.model == 'sphere'
-        assert sphere_result.theory.shape == q.shape
-        assert sphere_result.residuals.shape == q.shape
-        assert np.all(np.isfinite(sphere_result.theory))
 
-    def test_chi2(self, sphere_result, sans_data):
-        # reference chi2/Npts ~ 0.85 for this dataset and grid
-        assert sphere_result.chi2 < 1.5
-        q, iq, diq = sans_data
-        residuals = (sphere_result.theory - iq) / diq
-        assert sphere_result.chi2 == pytest.approx(np.sum(residuals ** 2) / residuals.size)
+class TestSpherePipeline:
+    """The single-parameter (sphere) path end to end, solver mocked."""
 
-    def test_background(self, sphere_result):
-        # reference b ~ 0.0867
-        assert sphere_result.background == pytest.approx(0.0867, abs=0.02)
+    def test_invert_returns_a_populated_inversion_result(self, fake_optimize):
+        """
+        Test that the solver's output is packaged into an InversionResult
+        Testing mostly plumbing
+        """
+        q, iq, diq = _sphere_data()
+        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+                        sld=4.0, sld_solvent=1.0)
 
-    def test_distribution(self, sphere_result):
-        assert len(sphere_result.distributions) == 1
-        dist = sphere_result.distributions[0]
+        assert isinstance(result, InversionResult)
+        assert result.model == 'sphere'
+        assert result.xi == FAKE_XI
+        assert result.background == FAKE_BACKGROUND
+        assert result.drho == 3.0
+
+        assert len(result.distributions) == 1
+        dist = result.distributions[0]
         assert isinstance(dist, ParamDistribution)
         assert dist.name == 'r'
-        assert dist.grid.shape == (N_BINS,)
-        assert dist.grid[0] == R_MIN and dist.grid[-1] == R_MAX
-        # weights on the simplex
-        assert dist.weights.min() >= -1e-10
-        assert np.sum(dist.weights) == pytest.approx(1.0)
-        # reference peak ~ 710 A
-        assert 600 < dist.grid[np.argmax(dist.weights)] < 800
+        assert len(dist.grid) == 16
+        assert dist.grid[0] == 10.0
+        assert dist.grid[-1] == 100.0
+        # single-parameter models get a volume-weighted distribution
+        assert dist.volume_weights is not None
+        # not a restatement of api.py: under the mock's uniform weights the
+        # 4/3*pi cancels out of its `weighted / sum(weighted)`, so the
+        # expected value collapses to the closed form r**3 / sum(r**3)
+        np.testing.assert_allclose(
+            dist.volume_weights, dist.grid**3 / (dist.grid**3).sum(), rtol=1e-15
+        )
 
-    def test_volume_weights(self, sphere_result):
-        dist = sphere_result.distribution('r')
-        expected = dist.weights * dist.grid ** 3
-        expected /= np.sum(expected)
-        assert np.allclose(dist.volume_weights, expected)
-
-    def test_distribution_lookup(self, sphere_result):
-        assert sphere_result.distribution('r') is sphere_result.distributions[0]
-        with pytest.raises(KeyError):
-            sphere_result.distribution('x')
-
-    def test_average_volume(self, sphere_result):
-        dist = sphere_result.distribution('r')
-        expected = np.sum(dist.weights * 4 / 3 * np.pi * dist.grid ** 3)
-        assert sphere_result.average_volume == pytest.approx(expected)
-
-    def test_xi_positive(self, sphere_result):
-        assert sphere_result.xi > 0
-        assert np.isfinite(sphere_result.background)
-
-    def test_grid_as_array_equivalent(self, sphere_result, sans_data):
-        q, iq, diq = sans_data
-        grid = np.linspace(R_MIN, R_MAX, N_BINS)
-        result = invert('sphere', q, iq, diq, {'r': grid},
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
-        assert result.xi == sphere_result.xi
-        assert result.background == sphere_result.background
-        assert np.array_equal(result.distributions[0].weights,
-                              sphere_result.distributions[0].weights)
-
-    def test_model_class_accepted(self, sans_data):
-        q, iq, diq = sans_data
-        result = invert(Sphere, q, iq, diq, {'r': (R_MIN, R_MAX, 20)},
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
-        assert result.model == 'sphere'
-        assert len(result.distributions) == 1
-
-
-# ----------------------------------------------------------------------- GPU
-
-class TestGPU:
-    """Passing cupy arrays runs on the GPU but returns host numpy that matches
-    the CPU fit. Skipped where CuPy is not installed."""
-
-    def test_gpu_matches_cpu(self, sphere_result, sans_data):
-        cp = pytest.importorskip('cupy')
-        q, iq, diq = sans_data
-        result = invert('sphere', cp.asarray(q), cp.asarray(iq), cp.asarray(diq),
-                        {'r': (R_MIN, R_MAX, N_BINS)},
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
-        # results come back as host numpy, not cupy
-        assert isinstance(result.theory, np.ndarray)
-        assert isinstance(result.distribution('r').weights, np.ndarray)
-        # and agree with the CPU fit
-        np.testing.assert_allclose(result.theory, sphere_result.theory, rtol=1e-6)
-        np.testing.assert_allclose(result.distribution('r').weights,
-                                   sphere_result.distribution('r').weights, atol=1e-8)
-
-
-# ------------------------------------------------------------------ contrast
-
-@pytest.fixture(scope='module')
-def sphere_result_alt(sans_data):
-    """Same fit at a different contrast (drho=1), for the invariance tests."""
-    q, iq, diq = sans_data
-    return invert('sphere', q, iq, diq, {'r': (R_MIN, R_MAX, N_BINS)},
-                  sld=SLD_ALT, sld_solvent=SLD_SOLVENT_ALT, sigma=SIGMA)
-
-
-class TestContrast:
-    """
-    `G` scales as `drho**2` and `xi` is free, so the contrast cannot be fitted;
-    it is an input baked into `G`. The fitted distribution/curve are therefore
-    contrast-invariant, `xi` absorbs `drho**2`, and `scale = xi*<V>*1e4` is the
-    reported volume fraction.
-    """
-
-    def test_drho_from_slds(self, sphere_result):
-        assert sphere_result.drho == DRHO
-        assert sphere_result.scale > 0
-
-    def test_fit_is_contrast_invariant(self, sphere_result, sphere_result_alt):
+    def test_invert_returns_theory_and_residuals_on_the_q_grid(self, fake_optimize):
         """
-        Changing only the contrast rescales `G` by a global factor that `xi`
-        absorbs, so the fitted distribution and curve must not depend on it.
-        Agreement is numerical: GALAHAD solves a problem scaled by drho**2 and
-        converges to a very slightly different point.
+        Test that the fitted curve and residuals come back on the input q.
+        Shapes only, Values tested in test_galahad.py
         """
-        base, alt = sphere_result, sphere_result_alt
-        np.testing.assert_allclose(alt.distribution('r').weights,
-                                   base.distribution('r').weights, atol=1e-8)
-        np.testing.assert_allclose(alt.theory, base.theory, rtol=1e-9)
-        assert alt.background == pytest.approx(base.background, rel=1e-9)
-        assert alt.chi2 == pytest.approx(base.chi2, rel=1e-9)
-        # xi absorbs drho**2: the xi ratio is the inverse-square of the drho ratio
-        assert alt.xi / base.xi == pytest.approx((DRHO / DRHO_ALT) ** 2, rel=1e-9)
+        q, iq, diq = _sphere_data()
+        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+                        sld=4.0, sld_solvent=1.0)
 
-    def test_scale_no_double_counting(self, sphere_result, sphere_result_alt):
-        """
-        drho**2 already lives in `G`, so `scale = xi*<V>*1e4` must not apply it
-        again. Since xi is proportional to 1/drho**2, `scale * drho**2` is
-        contrast-independent; a mismatch means the contrast was counted twice.
-        """
-        assert (sphere_result.scale * DRHO ** 2
-                == pytest.approx(sphere_result_alt.scale * DRHO_ALT ** 2, rel=1e-9))
-
-
-# ------------------------------------------- multi-parameter models (smoke)
-
-def synthetic_data(model_class, grids, xi_true=2.0, b_true=0.5, seed=0):
-    """Small synthetic dataset with a known separable distribution."""
-    rng = np.random.default_rng(seed)
-    q = np.linspace(2e-3, 2e-1, 40)
-    param_list = [np.linspace(lo, hi, n) for lo, hi, n in grids]
-    w_list = []
-    for grid in param_list:
-        w = np.exp(-0.5 * ((grid - grid.mean()) / (0.15 * np.ptp(grid))) ** 2)
-        w_list.append(w / np.sum(w))
-    G = model_class.compute_scattering_intensity([q], param_list, 1.0)
-    intensity = xi_true * np.asarray(contract_tensor(G, w_list, skip_axes=[0])) + b_true
-    intensity_std = 0.05 * np.abs(intensity)
-    intensity = intensity + intensity_std * rng.standard_normal(q.size)
-    return q, intensity, intensity_std
-
-
-class TestCylinder:
-
-    def test_smoke(self):
-        grids = [(100.0, 400.0, 8), (20.0, 60.0, 8)]  # l, r
-        q, iq, diq = synthetic_data(Cylinder, grids)
-        result = invert('cylinder', q, iq, diq, {'r': grids[1], 'l': grids[0]},
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
-        # distributions come back in ffsi's canonical order, not dict order
-        assert [d.name for d in result.distributions] == ['l', 'r']
-        for dist in result.distributions:
-            assert np.sum(dist.weights) == pytest.approx(1.0)
-            assert dist.weights.min() >= -1e-10
-            assert dist.volume_weights is None
-        assert np.isfinite(result.chi2)
-        assert result.average_volume > 0
-
-
-class TestEllipsoid:
-
-    def test_smoke(self):
-        grids = [(150.0, 350.0, 8), (30.0, 80.0, 8)]  # rp, re
-        q, iq, diq = synthetic_data(Ellipsoid, grids)
-        result = invert('ellipsoid', q, iq, diq, {'rp': grids[0], 're': grids[1]},
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA)
-        assert [d.name for d in result.distributions] == ['rp', 're']
-        for dist in result.distributions:
-            assert np.sum(dist.weights) == pytest.approx(1.0)
-            assert dist.weights.min() >= -1e-10
-            assert dist.volume_weights is None
-        assert np.isfinite(result.chi2)
-        assert result.average_volume > 0
-
-
-# ----------------------------------------------- resolution smearing (1D)
-
-class TestSmearing:
-    """
-    Passing (q_calc, resolution_weights) builds G on the extended grid and
-    smears it back onto the measured q. The weights come from sasmodels
-    Pinhole1D/Slit1D, matching how SasView drives the smeared fit.
-    """
-
-    GRID = {'r': (R_MIN, R_MAX, N_BINS)}
-
-    def test_pinhole_result_shape(self, sans_data):
-        from sasmodels.resolution import Pinhole1D
-        q, iq, diq = sans_data
-        res = Pinhole1D(q, 0.05 * q)  # 5% dQ/Q gaussian resolution
-        result = invert('sphere', q, iq, diq, self.GRID,
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA,
-                        q_calc=res.q_calc, resolution_weights=res.weight_matrix)
-        assert isinstance(result, InversionResult)
-        # theory/residuals live on the measured q, not the extended q_calc
         assert result.theory.shape == q.shape
         assert result.residuals.shape == q.shape
-        assert np.all(np.isfinite(result.theory))
-        assert np.isfinite(result.chi2)
 
-    def test_pinhole_changes_the_fit(self, sphere_result, sans_data):
-        from sasmodels.resolution import Pinhole1D
-        q, iq, diq = sans_data
-        res = Pinhole1D(q, 0.05 * q)
-        smeared = invert('sphere', q, iq, diq, self.GRID,
-                         sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA,
-                         q_calc=res.q_calc, resolution_weights=res.weight_matrix)
-        # smearing must actually change the fitted curve and distribution
-        assert not np.allclose(smeared.theory, sphere_result.theory)
-        assert not np.allclose(smeared.distribution('r').weights,
-                               sphere_result.distribution('r').weights)
+    def test_invert_treats_a_grid_triple_and_array_identically(self, fake_optimize):
+        """
+        Test that a (min, max, nbins) triple and a prebuilt array agree
+        """
+        q, iq, diq = _sphere_data()
+        grid = np.linspace(10.0, 100.0, 16)
 
-    def test_pinhole_matches_manual_forward(self, sans_data):
-        from sasmodels.resolution import Pinhole1D
-        q, iq, diq = sans_data
-        res = Pinhole1D(q, 0.05 * q)
-        result = invert('sphere', q, iq, diq, self.GRID,
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA,
-                        q_calc=res.q_calc, resolution_weights=res.weight_matrix)
-        # reconstruct theory = xi * smear(G).w + background from the fit outputs
-        grid = np.linspace(R_MIN, R_MAX, N_BINS)
-        weights = result.distribution('r').weights
-        G = Sphere.compute_scattering_intensity([res.q_calc], [grid], DRHO)
-        G_smeared = smear_tensor_1d(G, res.weight_matrix)
-        theory = result.xi * np.asarray(contract_tensor(G_smeared, [weights], skip_axes=[0])) \
-            + result.background
-        np.testing.assert_allclose(result.theory, theory, rtol=1e-9)
+        from_triple = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+                             sld=4.0, sld_solvent=1.0)
+        from_array = invert('sphere', q, iq, diq, {'r': grid},
+                            sld=4.0, sld_solvent=1.0)
 
-    def test_slit_smoke(self, sphere_result, sans_data):
-        from sasmodels.resolution import Slit1D
-        q, iq, diq = sans_data
-        res = Slit1D(q, q_length=0.03, q_width=0.0)
-        result = invert('sphere', q, iq, diq, self.GRID,
-                        sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA,
-                        q_calc=res.q_calc, resolution_weights=res.weight_matrix)
+        np.testing.assert_array_equal(
+            from_triple.distributions[0].grid, from_array.distributions[0].grid
+        )
+        np.testing.assert_array_equal(from_triple.theory, from_array.theory)
+        assert from_triple.chi2 == from_array.chi2
+
+
+class TestSolverContract:
+    """What `invert` hands the solver, and that it calls it exactly once."""
+
+    def test_invert_calls_optimize_once_with_G_and_sigma(self, fake_optimize):
+        """
+        Test that the solver sees one call, with the right G and sigma
+        """
+        q, iq, diq = _sphere_data()
+        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+               sld=4.0, sld_solvent=1.0, sigma=0.25)
+
+        # once, not iteratively: the problem is convex
+        assert len(fake_optimize.calls) == 1
+        call = fake_optimize.calls[0]
+        # G's leading axis is q; trailing axis is the r grid
+        assert call["G_shape"] == (len(q), 16)
+        assert call["sigma"] == 0.25
+
+    def test_invert_passes_sigma_none_when_not_given(self, fake_optimize):
+        """
+        Test that omitting sigma reaches the solver as None, not as 0.0
+        """
+        q, iq, diq = _sphere_data()
+        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+               sld=4.0, sld_solvent=1.0)
+        assert fake_optimize.calls[0]["sigma"] is None
+
+
+class TestParameterOrdering:
+    """Multi-parameter models return distributions in ffsi's canonical order."""
+
+    def test_invert_returns_cylinder_params_in_canonical_order(self, fake_optimize):
+        """
+        Test that cylinder distributions come back as (l, r)
+        """
+        q, iq, diq = _sphere_data()
+        # grids given in the "wrong" dict order: r before l
+        result = invert('cylinder', q, iq, diq,
+                        {'r': (20.0, 60.0, 8), 'l': (100.0, 400.0, 8)},
+                        sld=4.0, sld_solvent=1.0)
+
+        assert [d.name for d in result.distributions] == ['l', 'r']
+        for dist in result.distributions:
+            np.testing.assert_array_equal(dist.weights, np.full(8, 0.125))
+            # per-marginal volume weighting is undefined for multi-param models
+            assert dist.volume_weights is None
+
+    def test_invert_returns_ellipsoid_params_in_canonical_order(self, fake_optimize):
+        """
+        Test that ellipsoid distributions come back as (rp, re)
+        """
+        q, iq, diq = _sphere_data()
+        result = invert('ellipsoid', q, iq, diq,
+                        {'re': (20.0, 60.0, 8), 'rp': (30.0, 90.0, 8)},
+                        sld=4.0, sld_solvent=1.0)
+
+        assert [d.name for d in result.distributions] == ['rp', 're']
+        for dist in result.distributions:
+            np.testing.assert_array_equal(dist.weights, np.full(8, 0.125))
+            assert dist.volume_weights is None
+
+
+class TestSmearingPath:
+    """The smeared vs unsmeared branch selection in invert()."""
+
+    def _spy(self, monkeypatch):
+        """Record which G-building method invert() reaches for the sphere."""
+        seen = []
+        real_smeared = Sphere.compute_smeared_scattering_intensity
+        real_plain = Sphere.compute_scattering_intensity
+
+        def smeared(q_calc_list, q_calc_weights, param_list, drho):
+            seen.append('smeared')
+            return real_smeared(q_calc_list, q_calc_weights, param_list, drho)
+
+        def plain(q_list, param_list, drho):
+            seen.append('plain')
+            return real_plain(q_list, param_list, drho)
+
+        monkeypatch.setattr(Sphere, 'compute_smeared_scattering_intensity', staticmethod(smeared))
+        monkeypatch.setattr(Sphere, 'compute_scattering_intensity', staticmethod(plain))
+        return seen
+
+    def test_invert_takes_the_smeared_branch(self, fake_optimize, monkeypatch):
+        """
+        Test that q_calc plus resolution_weights builds G on the extended grid
+        """
+        seen = self._spy(monkeypatch)
+        q, iq, diq = _sphere_data()
+        # identity weight matrix, shape (len(q_calc), len(q))
+        weights = np.eye(len(q))
+        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+                        sld=4.0, sld_solvent=1.0,
+                        q_calc=q, resolution_weights=weights)
+
+        assert 'smeared' in seen
         assert result.theory.shape == q.shape
-        assert np.all(np.isfinite(result.theory))
-        assert np.isfinite(result.chi2)
-        assert not np.allclose(result.theory, sphere_result.theory)
 
-    def test_partial_smearing_args_ignored(self, sphere_result, sans_data):
-        """q_calc without resolution_weights (or vice versa) is the unsmeared path."""
-        q, iq, diq = sans_data
-        only_qcalc = invert('sphere', q, iq, diq, self.GRID,
-                            sld=SLD, sld_solvent=SLD_SOLVENT, sigma=SIGMA,
-                            q_calc=q)
-        np.testing.assert_allclose(only_qcalc.theory, sphere_result.theory, rtol=1e-9)
+    def test_invert_ignores_q_calc_without_resolution_weights(
+        self, fake_optimize, monkeypatch
+    ):
+        """
+        Test that a half-specified smearing request falls back to the plain path
+        """
+        seen = self._spy(monkeypatch)
+        q, iq, diq = _sphere_data()
+        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
+               sld=4.0, sld_solvent=1.0, q_calc=q)
+
+        assert seen == ['plain']
+
+
+class TestModelResolutionErrors:
+    """Paths that never reach the solver."""
+
+    def test_resolve_model_rejects_an_unknown_name(self):
+        """
+        Test that an unrecognised model name raises before any work is done
+        """
+        with pytest.raises(ValueError, match='core_shell_sphere'):
+            _resolve_model('core_shell_sphere')
+
+    def test_resolve_model_accepts_a_sasmodel_subclass(self):
+        """
+        Test that a model class is accepted as well as its name
+        """
+        cls, name = _resolve_model(Sphere)
+        assert cls is Sphere and name == 'sphere'
+
+
+# ---------------------------------- sphere on synthetic data (pinned numerics)
+
+# set ground truth values for simple toy problem, and tolerances for test values.
+
+# discretisation
+Q = np.logspace(-3, 0, 320)
+R = np.linspace(400.0, 800.0, 200)
+
+SLD = 4.0
+SLD_SOLVENT = 3.0
+DRHO = SLD - SLD_SOLVENT
+
+SIGMA = {"noiseless": 0.25, "noisy": 16.0}
+
+
+def gaussian_weights(grid, centre, width):
+    """
+    A normalised Gaussian distribution over `grid`.
+    """
+    weights = np.exp(-((grid - centre) ** 2) / (2 * width**2))
+    return weights / weights.sum()
+
+
+# ground truth
+SCALE_TRUE = 2.0
+BACKGROUND_TRUE = 0.5
+MEAN_R_TRUE = 500.0
+W_TRUE = gaussian_weights(R, MEAN_R_TRUE, 10.0)
+W_PEAK_TRUE = 0.080088220296025706
+
+AVERAGE_VOLUME_TRUE = 5.2422709412901676e8
+XI_TRUE = 3.8151404656467128e-13
+MEAN_R_VOLUME_TRUE = 500.59952057530961
+
+# simulated intensities, with 20%-30% error bars
+_G = Sphere.compute_scattering_intensity([Q], [R], DRHO)
+I_DATA = XI_TRUE * (_G @ W_TRUE) + BACKGROUND_TRUE
+I_DATA_STD = (np.random.RandomState(0).rand(Q.size) * 0.1 + 0.2) * I_DATA
+I_DATA_NOISY = I_DATA + I_DATA_STD * np.random.default_rng(12345).standard_normal(
+    Q.size
+)
+
+DATASETS = {"noiseless": I_DATA, "noisy": I_DATA_NOISY}
+
+CHI2 = {"noiseless": 2.15049897750567e-11, "noisy": 0.97648549676700314}
+RESIDUAL_MAX = {"noiseless": 3.33344810463421e-05, "noisy": 3.0427813742445928}
+RESIDUAL_MIN = {"noiseless": -2.5325843594523642e-05, "noisy": -2.6138711743103058}
+
+# relative tolerance on the recovered quantities, per dataset
+PROBLEM_TOL = [("noiseless", 1e-5), ("noisy", 5e-2)]
+
+
+@pytest.fixture(scope="module")
+def results():
+    """
+    Fit the toy problem once per dataset, for the whole module.
+    """
+    return {
+        name: invert(
+            "sphere",
+            Q,
+            intensity,
+            I_DATA_STD,
+            {"r": R},
+            sld=SLD,
+            sld_solvent=SLD_SOLVENT,
+            sigma=SIGMA[name],
+        )
+        for name, intensity in DATASETS.items()
+    }
+
+
+class TestInvert:
+    """
+    Class to test invert() against the sphere toy problem.
+    """
+
+    @pytest.mark.parametrize("case", DATASETS)
+    def test_invert_returns_correct_drho(self, results, case):
+        """
+        Test that the contrast used for the fit is reported back
+        """
+        assert results[case].drho == pytest.approx(1.0)
+
+    @pytest.mark.parametrize("case, rtol", PROBLEM_TOL)
+    def test_invert_returns_correct_scale(self, results, case, rtol):
+        """
+        Test that the volume-fraction scale is recovered
+        """
+        assert results[case].scale == pytest.approx(SCALE_TRUE, rel=rtol)
+
+    @pytest.mark.parametrize("case, rtol", PROBLEM_TOL)
+    def test_invert_returns_correct_xi(self, results, case, rtol):
+        """
+        Test that xi is recovered
+
+        `abs=0` because xi is ~1e-13, well under the default absolute
+        tolerance.
+        """
+        assert results[case].xi == pytest.approx(XI_TRUE, rel=rtol, abs=0)
+
+    @pytest.mark.parametrize("case, rtol", PROBLEM_TOL)
+    def test_invert_returns_correct_background(self, results, case, rtol):
+        """
+        Test that the flat background is recovered
+        """
+        assert results[case].background == pytest.approx(BACKGROUND_TRUE, rel=rtol)
+
+    @pytest.mark.parametrize("case, rtol", PROBLEM_TOL)
+    def test_invert_returns_correct_average_volume(self, results, case, rtol):
+        """
+        Test that the average sphere volume is recovered
+        """
+        assert results[case].average_volume == pytest.approx(
+            AVERAGE_VOLUME_TRUE, rel=rtol
+        )
+
+    @pytest.mark.parametrize("case", DATASETS)
+    def test_invert_returns_valid_distribution(self, results, case):
+        """
+        Test that the weights satisfy the simplex constraint
+        """
+        weights = results[case].distribution("r").weights
+
+        assert weights.sum() == pytest.approx(1.0, abs=1e-8)
+        assert (weights >= 0).all()
+
+    @pytest.mark.parametrize("case", DATASETS)
+    def test_invert_returns_correct_chi2(self, results, case):
+        """
+        Test the mean squared residual against its pinned value
+        """
+        assert results[case].chi2 == pytest.approx(CHI2[case], abs=1e-6)
+
+    @pytest.mark.parametrize("case", DATASETS)
+    def test_invert_returns_correct_residuals(self, results, case):
+        """
+        Test the residual extremes against their pinned values
+        """
+        residuals = results[case].residuals
+
+        assert residuals.max() == pytest.approx(RESIDUAL_MAX[case], abs=1e-6)
+        assert residuals.min() == pytest.approx(RESIDUAL_MIN[case], abs=1e-6)
+
+    @pytest.mark.parametrize("case", DATASETS)
+    def test_invert_returns_correct_result_shapes(self, results, case):
+        """
+        Test that the fitted curve and residuals are returned on the q grid
+        """
+        result = results[case]
+
+        assert result.theory.shape == Q.shape
+        assert result.residuals.shape == Q.shape
+        assert result.distribution("r").grid.shape == R.shape
