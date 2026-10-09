@@ -292,9 +292,9 @@ I_DATA_NOISY = I_DATA + I_DATA_STD * np.random.default_rng(12345).standard_norma
 
 DATASETS = {"noiseless": I_DATA, "noisy": I_DATA_NOISY}
 
-CHI2 = {"noiseless": 2.15049897750567e-11, "noisy": 0.97648549676700314}
-RESIDUAL_MAX = {"noiseless": 3.33344810463421e-05, "noisy": 3.0427813742445928}
-RESIDUAL_MIN = {"noiseless": -2.5325843594523642e-05, "noisy": -2.6138711743103058}
+CHI2 = {"noiseless": 2.15050e-11, "noisy": 0.976485}
+RESIDUAL_MAX = {"noiseless": 3.33345e-05, "noisy": 3.042781}
+RESIDUAL_MIN = {"noiseless": -2.53258e-05, "noisy": -2.613871}
 
 # relative tolerance on the recovered quantities, per dataset
 PROBLEM_TOL = [("noiseless", 1e-5), ("noisy", 5e-2)]
