@@ -62,7 +62,7 @@ def gauss_legendre(xp):
         -.0205314039939986,
     ])
     # quadrature points (both sides)
-    z = xp.concat((z_side, xp.flip(-z_side)))
+    z = xp.concatenate((z_side, xp.flip(-z_side)))
 
     # quadrature weights (one side)
     w_side = xp.array([
@@ -106,6 +106,6 @@ def gauss_legendre(xp):
         .0410570369162294,
     ])
     # quadrature weights (both sides)
-    w = xp.concat((w_side, xp.flip(w_side)))
+    w = xp.concatenate((w_side, xp.flip(w_side)))
 
     return z, w
