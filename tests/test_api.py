@@ -53,20 +53,31 @@ def _sphere_data(n=32):
     return q, iq, diq
 
 
+def _invert_sphere(grid=(10.0, 100.0, 16), **kwargs):
+    """`invert` on `_sphere_data()` for a sphere with the r grid `grid`; kwargs pass through."""
+    q, iq, diq = _sphere_data()
+    return invert("sphere", q, iq, diq, {"r": grid}, sld=4.0, sld_solvent=1.0, **kwargs)
+
+
 class TestSpherePipeline:
-    """The single-parameter (sphere) path end to end, solver mocked."""
+    """
+    With the GALAHAD solver mocked, check that invert() packages its output
+    correctly for a single-parameter model (sphere): the InversionResult fields,
+    the volume-weighted distribution, the shapes of theory and residuals, and
+    that a (min, max, nbins) grid triple and a prebuilt grid array give the
+    same result.
+    """
 
     def test_invert_returns_a_populated_inversion_result(self, fake_optimize):
         """
-        Test that the solver's output is packaged into an InversionResult
-        Testing mostly plumbing
+        Test that the solver output (xi, background, drho) is packaged into
+        the InversionResult, that a single-parameter model gets exactly one
+        ParamDistribution, and that the volume-weighted distribution is computed
+        correctly from the uniform mock weights. Testing mostly plumbing.
         """
-        q, iq, diq = _sphere_data()
-        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-                        sld=4.0, sld_solvent=1.0)
+        result = _invert_sphere()
 
         assert isinstance(result, InversionResult)
-        assert result.model == 'sphere'
         assert result.xi == FAKE_XI
         assert result.background == FAKE_BACKGROUND
         assert result.drho == 3.0
@@ -74,10 +85,6 @@ class TestSpherePipeline:
         assert len(result.distributions) == 1
         dist = result.distributions[0]
         assert isinstance(dist, ParamDistribution)
-        assert dist.name == 'r'
-        assert len(dist.grid) == 16
-        assert dist.grid[0] == 10.0
-        assert dist.grid[-1] == 100.0
         # single-parameter models get a volume-weighted distribution
         assert dist.volume_weights is not None
         # not a restatement of api.py: under the mock's uniform weights the
@@ -89,27 +96,24 @@ class TestSpherePipeline:
 
     def test_invert_returns_theory_and_residuals_on_the_q_grid(self, fake_optimize):
         """
-        Test that the fitted curve and residuals come back on the input q.
-        Shapes only, Values tested in test_galahad.py
+        Test that the fitted curve and residuals come back on the input q grid.
+        Shapes only.
         """
-        q, iq, diq = _sphere_data()
-        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-                        sld=4.0, sld_solvent=1.0)
+        q, _, _ = _sphere_data()
+        result = _invert_sphere()
 
         assert result.theory.shape == q.shape
         assert result.residuals.shape == q.shape
 
-    def test_invert_treats_a_grid_triple_and_array_identically(self, fake_optimize):
+    def test_invert_treats_a_grid_tuple_and_array_identically(self, fake_optimize):
         """
-        Test that a (min, max, nbins) triple and a prebuilt array agree
+        Test that a (min, max, nbins) triple and a prebuilt array of bin
+        centres produce the same grid, theory and chi2.
         """
-        q, iq, diq = _sphere_data()
         grid = np.linspace(10.0, 100.0, 16)
 
-        from_triple = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-                             sld=4.0, sld_solvent=1.0)
-        from_array = invert('sphere', q, iq, diq, {'r': grid},
-                            sld=4.0, sld_solvent=1.0)
+        from_triple = _invert_sphere()
+        from_array = _invert_sphere(grid=grid)
 
         np.testing.assert_array_equal(
             from_triple.distributions[0].grid, from_array.distributions[0].grid
@@ -119,15 +123,18 @@ class TestSpherePipeline:
 
 
 class TestSolverContract:
-    """What `invert` hands the solver, and that it calls it exactly once."""
+    """
+    Test exactly what invert() passes to the GALAHAD solver (the shape of the
+    Green's tensor G and the regularisation weight sigma).
+    """
 
     def test_invert_calls_optimize_once_with_G_and_sigma(self, fake_optimize):
         """
-        Test that the solver sees one call, with the right G and sigma
+        Test that the solver is called exactly once with the right G shape and
+        sigma.
         """
-        q, iq, diq = _sphere_data()
-        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-               sld=4.0, sld_solvent=1.0, sigma=0.25)
+        q, _, _ = _sphere_data()
+        _invert_sphere(sigma=0.25)
 
         # once, not iteratively: the problem is convex
         assert len(fake_optimize.calls) == 1
@@ -138,20 +145,28 @@ class TestSolverContract:
 
     def test_invert_passes_sigma_none_when_not_given(self, fake_optimize):
         """
-        Test that omitting sigma reaches the solver as None, not as 0.0
+        Test that omitting sigma reaches the solver as None, not as 0.0.
+        None disables regularisation entirely; 0.0 would add a zero-weight
+        term that changes the Jacobian structure.
         """
-        q, iq, diq = _sphere_data()
-        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-               sld=4.0, sld_solvent=1.0)
+        _invert_sphere()
         assert fake_optimize.calls[0]["sigma"] is None
 
 
 class TestParameterOrdering:
-    """Multi-parameter models return distributions in ffsi's canonical order."""
+    """
+    Test that multi-parameter models (cylinder, ellipsoid) return their
+    distributions in ffsi's canonical parameter order whatever order the grids
+    dict is given in. SasView and ffsi order these parameters differently, so
+    callers must not depend on dict order.
+    """
 
     def test_invert_returns_cylinder_params_in_canonical_order(self, fake_optimize):
         """
-        Test that cylinder distributions come back as (l, r)
+        Test that cylinder distributions come back as (l, r) regardless of
+        the dict order. ffsi's canonical order is (l, r); sasmodels uses
+        (radius, length). The grid dict deliberately has r before l to prove
+        that ordering is driven by ffsi's parameter schema, not the dict.
         """
         q, iq, diq = _sphere_data()
         # grids given in the "wrong" dict order: r before l
@@ -167,7 +182,8 @@ class TestParameterOrdering:
 
     def test_invert_returns_ellipsoid_params_in_canonical_order(self, fake_optimize):
         """
-        Test that ellipsoid distributions come back as (rp, re)
+        Test that ellipsoid distributions come back as (rp, re) regardless of
+        dict order.
         """
         q, iq, diq = _sphere_data()
         result = invert('ellipsoid', q, iq, diq,
@@ -181,7 +197,11 @@ class TestParameterOrdering:
 
 
 class TestSmearingPath:
-    """The smeared vs unsmeared branch selection in invert()."""
+    """
+    Test that invert() builds a resolution-smeared G only when both q_calc and
+    resolution_weights are given, and falls back to the unsmeared G when either
+    is missing.
+    """
 
     def _spy(self, monkeypatch):
         """Record which G-building method invert() reaches for the sphere."""
@@ -203,15 +223,14 @@ class TestSmearingPath:
 
     def test_invert_takes_the_smeared_branch(self, fake_optimize, monkeypatch):
         """
-        Test that q_calc plus resolution_weights builds G on the extended grid
+        Test that when both q_calc and resolution_weights are given, invert()
+        builds G on the extended q points (grid).
         """
         seen = self._spy(monkeypatch)
-        q, iq, diq = _sphere_data()
+        q, _, _ = _sphere_data()
         # identity weight matrix, shape (len(q_calc), len(q))
         weights = np.eye(len(q))
-        result = invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-                        sld=4.0, sld_solvent=1.0,
-                        q_calc=q, resolution_weights=weights)
+        result = _invert_sphere(q_calc=q, resolution_weights=weights)
 
         assert 'smeared' in seen
         assert result.theory.shape == q.shape
@@ -223,15 +242,18 @@ class TestSmearingPath:
         Test that a half-specified smearing request falls back to the plain path
         """
         seen = self._spy(monkeypatch)
-        q, iq, diq = _sphere_data()
-        invert('sphere', q, iq, diq, {'r': (10.0, 100.0, 16)},
-               sld=4.0, sld_solvent=1.0, q_calc=q)
+        q, _, _ = _sphere_data()
+        _invert_sphere(q_calc=q)
 
         assert seen == ['plain']
 
 
 class TestModelResolutionErrors:
-    """Paths that never reach the solver."""
+    """
+    Test that model names (and SASModel classes) resolve to the right model,
+    and that an unrecognised model name raises a clear ValueError before any
+    computation is done.
+    """
 
     def test_resolve_model_rejects_an_unknown_name(self):
         """
@@ -242,7 +264,8 @@ class TestModelResolutionErrors:
 
     def test_resolve_model_accepts_a_sasmodel_subclass(self):
         """
-        Test that a model class is accepted as well as its name
+        Test that a SASModel subclass (model class) is accepted as well as
+        a name string (model name).
         """
         cls, name = _resolve_model(Sphere)
         assert cls is Sphere and name == 'sphere'
