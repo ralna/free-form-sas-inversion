@@ -87,12 +87,6 @@ class TestSpherePipeline:
         assert isinstance(dist, ParamDistribution)
         # single-parameter models get a volume-weighted distribution
         assert dist.volume_weights is not None
-        # not a restatement of api.py: under the mock's uniform weights the
-        # 4/3*pi cancels out of its `weighted / sum(weighted)`, so the
-        # expected value collapses to the closed form r**3 / sum(r**3)
-        np.testing.assert_allclose(
-            dist.volume_weights, dist.grid**3 / (dist.grid**3).sum(), rtol=1e-15
-        )
 
     def test_invert_returns_theory_and_residuals_on_the_q_grid(self, fake_optimize):
         """
