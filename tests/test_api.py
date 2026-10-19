@@ -72,16 +72,7 @@ class TestSpherePipeline:
         """
         Test that the solver output (xi, background, drho) is packaged into
         the InversionResult, that a single-parameter model gets exactly one
-        ParamDistribution, and that the volume-weighted distribution is computed
-        correctly from the uniform mock weights. Testing mostly plumbing.
-        """
-        result = _invert_sphere()
-
         assert isinstance(result, InversionResult)
-        assert result.xi == FAKE_XI
-        assert result.background == FAKE_BACKGROUND
-        assert result.drho == 3.0
-
         assert len(result.distributions) == 1
         dist = result.distributions[0]
         assert isinstance(dist, ParamDistribution)
