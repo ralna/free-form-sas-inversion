@@ -258,8 +258,8 @@ def optimize_bounded(G, I_data, I_data_std, xi_lb, xi_ub, b_lb, b_ub, sigma=None
                 Jr_reg1_col.append(np.arange(st+1, st+dim))
                 Jr_reg2_col.append(np.arange(st, st+dim-1))
             # combined derivative
-            Jr_row = np.concat((Jr_eps_row,*Jr_reg1_row,*Jr_reg2_row))
-            Jr_col = np.concat((Jr_eps_col,*Jr_reg1_col,*Jr_reg2_col))
+            Jr_row = np.concatenate((Jr_eps_row, *Jr_reg1_row, *Jr_reg2_row))
+            Jr_col = np.concatenate((Jr_eps_col, *Jr_reg1_col, *Jr_reg2_col))
         Jr_ptr_ne = 0
         Jr_ptr = None
 
