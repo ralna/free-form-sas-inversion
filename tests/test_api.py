@@ -8,10 +8,6 @@ import pytest
 from ffsi.api import ParamDistribution, InversionResult, _resolve_model, invert
 from ffsi.models.sphere import Sphere
 
-# canned solver outputs, asserted throughout
-FAKE_XI = 1.5
-FAKE_BACKGROUND = 0.1
-
 
 @pytest.fixture(autouse=True)
 def force_cpu(monkeypatch):
@@ -34,7 +30,7 @@ class RecordingOptimize:
     def __call__(self, G, I_data, I_data_std, sigma=None):
         self.calls.append({"G_shape": tuple(G.shape), "sigma": sigma})
         w_list = [np.full(G.shape[ax], 1.0 / G.shape[ax]) for ax in range(1, G.ndim)]
-        return FAKE_XI, FAKE_BACKGROUND, w_list
+        return 1.5, 0.1, w_list
 
 
 @pytest.fixture
@@ -64,14 +60,18 @@ class TestSpherePipeline:
     With the GALAHAD solver mocked, check that invert() packages its output
     correctly for a single-parameter model (sphere): the InversionResult fields,
     the volume-weighted distribution, the shapes of theory and residuals, and
-    that a (min, max, nbins) grid triple and a prebuilt grid array give the
+    that a (min, max, nbins) grid tuple and a prebuilt grid array give the
     same result.
     """
 
     def test_invert_returns_a_populated_inversion_result(self, fake_optimize):
         """
-        Test that the solver output (xi, background, drho) is packaged into
-        the InversionResult, that a single-parameter model gets exactly one
+        Test that invert() returns an InversionResult and that a
+        single-parameter model gets exactly one ParamDistribution, with its
+        volume-weighted distribution computed. Testing mostly plumbing.
+        """
+        result = _invert_sphere()
+
         assert isinstance(result, InversionResult)
         assert len(result.distributions) == 1
         dist = result.distributions[0]
@@ -92,19 +92,19 @@ class TestSpherePipeline:
 
     def test_invert_treats_a_grid_tuple_and_array_identically(self, fake_optimize):
         """
-        Test that a (min, max, nbins) triple and a prebuilt array of bin
+        Test that a (min, max, nbins) tuple and a prebuilt array of bin
         centres produce the same grid, theory and chi2.
         """
         grid = np.linspace(10.0, 100.0, 16)
 
-        from_triple = _invert_sphere()
+        from_tuple = _invert_sphere()
         from_array = _invert_sphere(grid=grid)
 
         np.testing.assert_array_equal(
-            from_triple.distributions[0].grid, from_array.distributions[0].grid
+            from_tuple.distributions[0].grid, from_array.distributions[0].grid
         )
-        np.testing.assert_array_equal(from_triple.theory, from_array.theory)
-        assert from_triple.chi2 == from_array.chi2
+        np.testing.assert_array_equal(from_tuple.theory, from_array.theory)
+        assert from_tuple.chi2 == from_array.chi2
 
 
 class TestSolverContract:
@@ -328,7 +328,11 @@ def results():
 
 class TestInvert:
     """
-    Class to test invert() against the sphere toy problem.
+    Run invert() end to end (real GALAHAD solver, no mocking) on a synthetic
+    sphere problem with known ground truth, for noiseless and noisy data, and
+    check that the recovered scale, xi, background, average volume and
+    distribution match the truth, and that chi2 and residuals match their
+    pinned values.
     """
 
     @pytest.mark.parametrize("case", DATASETS)
