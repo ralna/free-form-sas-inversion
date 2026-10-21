@@ -17,6 +17,7 @@ Author: Jaroslav Fowkes (STFC)
 from ffsi.array_module import get_array_module, get_science_module
 
 from ffsi.models.basemodel import SASModel
+from ffsi.utils import orientation_projections, safe_sinc
 
 class Cylinder2D(SASModel):
 
@@ -34,7 +35,17 @@ class Cylinder2D(SASModel):
         return xp.pi * l[:, None] * r[None, :] ** 2
 
     @staticmethod
-    def compute_scattering_intensity(q_list, param_list, drho):
+    def compute_scattering_intensity(q_list, param_list, drho, paired=False):
+        """
+        :param q_list: `[qx, qy]`; the axes of a regular grid, or paired detector
+            points when `paired` is True
+        :param param_list: `[l, r, theta, phi]`, angles in radians
+        :param drho: difference between scattering length densities
+        :param paired: evaluate on paired points `(qx[n], qy[n])` instead of the
+            `qx` x `qy` grid
+        :return: `G` of shape `(nqx, nqy, nl, nr, ntheta, nphi)`, or
+            `(nq, nl, nr, ntheta, nphi)` when `paired`
+        """
 
         # extract parameters
         qx, qy = q_list[0], q_list[1]
@@ -49,20 +60,18 @@ class Cylinder2D(SASModel):
         # cylinder volume
         V = Cylinder2D.compute_volume(param_list)
 
-        # coordinate transformation
-        sint_cosp = xp.outer(xp.sin(theta), xp.cos(phi))
-        sint_sinp = xp.outer(xp.sin(theta), xp.sin(phi))
-        qc = (qx[:,None,None] * sint_cosp[None,:,:])[:,None,:,:] + \
-            (qy[:,None,None] * sint_sinp[None,:,:])[None,:,:,:]
-        qa = xp.sqrt((qx ** 2)[:,None,None,None] +
-                    (qy ** 2)[None,:,None,None] - qc ** 2)
+        # components of q along (qc) and across (qa) the cylinder axis,
+        # shape (*q_shape, ntheta, nphi)
+        qc, qa = orientation_projections(qx, qy, theta, phi, paired=paired)
 
-        # cylinder scattering amplitude
-        hqcl = 0.5 * xp.moveaxis(qc[:,:,:,:,None] * l[None,None,None,None,:], 4, 2)
-        qar = xp.moveaxis(qa[:,:,:,:,None] * r[None,None,None,None,:], 4, 2)
-        sin_hqcl = xp.sin(hqcl) / hqcl
-        j1_qar = xps.special.j1(qar) / qar
-        F = 2 * V[None,None,:,:,None,None] * drho * sin_hqcl[:,:,:,None,:,:] * j1_qar[:,:,None,:,:,:]
+        # cylinder scattering amplitude, shape (*q_shape, nl, nr, ntheta, nphi)
+        hqcl = 0.5 * qc[..., None, :, :] * l[:, None, None]  # (*q_shape, nl, ntheta, nphi)
+        qar = qa[..., None, :, :] * r[:, None, None]  # (*q_shape, nr, ntheta, nphi)
+        sin_hqcl = safe_sinc(hqcl)
+        # j1(x)/x -> 1/2 as x -> 0 (q along the axis)
+        nonzero = qar != 0
+        j1_qar = xp.where(nonzero, xps.special.j1(qar) / xp.where(nonzero, qar, 1.0), 0.5)
+        F = 2 * V[:, :, None, None] * drho * sin_hqcl[..., :, None, :, :] * j1_qar[..., None, :, :, :]
 
         # scattering intensity (Green's function)
         return F ** 2

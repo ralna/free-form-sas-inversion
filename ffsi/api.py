@@ -89,6 +89,20 @@ class InversionResult:
         raise KeyError("No distribution for parameter '{}', have: {}".format(name, ", ".join(d.name for d in self.distributions)))
 
 
+def _is_2d(model_class):
+    """True for models evaluated on 2D `(qx, qy)` scattering vectors"""
+    return "2D" in model_class.__name__
+
+
+def _q_list(q, is_2d, xp):
+    """
+    Scattering vectors as the list of contiguous float arrays on backend `xp`
+    that the models take: `[q]` for 1D models, `[qx, qy]` for 2D models.
+    """
+    arrays = to_device(*q) if is_2d else to_device(q)
+    return [xp.ascontiguousarray(a, dtype=float) for a in arrays]
+
+
 def _build_grid(spec, xp):
     """Bin centers (on backend `xp`) from a (min, max, nbins) triple"""
     if isinstance(spec, np.ndarray) or (np.ndim(spec) == 1 and len(spec) > 3):
@@ -97,27 +111,44 @@ def _build_grid(spec, xp):
     return xp.linspace(float(lo), float(hi), int(nbins))
 
 
-def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None,
-           q_calc=None, resolution_weights=None):
+def invert(
+    model,
+    q,
+    intensity,
+    intensity_std,
+    grids,
+    *,
+    sld,
+    sld_solvent,
+    sigma=None,
+    q_calc=None,
+    resolution_weights=None,
+):
     """
-    Free-form inversion of 1D SAS data.
+    Free-form inversion of 1D or 2D SAS data.
 
-    :param model: model name ('sphere', 'cylinder', 'ellipsoid';
-    :param q: scattering vectors
+    :param model: model name ('sphere', 'cylinder', 'ellipsoid', 'cylinder2d',
+        'ellipsoid2d') or `SASModel` subclass
+    :param q: scattering vectors; a 1D array for 1D models, or a `(qx, qy)` pair
+        of 1D arrays (one entry per data point) for 2D models
     :param intensity: measured intensity `I(q)`
     :param intensity_std: intensity standard deviations `dI(q)`
     :param grids: `dict` keyed by the model's parameter names; each value
-        is a `(min, max, nbins)` triple or a prebuilt 1D array of bin centers
+        is a `(min, max, nbins)` triple or a prebuilt 1D array of bin centers.
+        Orientation grids (`theta`, `phi`) are in radians.
     :param sld: scattering length density of the particle,
         with `sld_solvent` it gives the contrast `drho = sld - sld_solvent`
     :param sld_solvent: scattering length density of the solvent, in 1e-6 A^-2
     :param sigma: smoothness regularization weight (`None` disables it)
-    :param q_calc: extended q grid on which to evaluate for resolution smearing;
-    must be given together with `resolution_weights`. When `None`, no smearing is applied.
-    :param resolution_weights: resolution weight matrix of shape
+    :param q_calc: extended q points on which to evaluate for resolution
+        smearing; must be given together with `resolution_weights`. When `None`,
+        no smearing is applied. A 1D array, or a `(qx, qy)` pair for 2D models.
+    :param resolution_weights: either a resolution weight matrix of shape
         `(len(q_calc), len(q))` (e.g. sasmodels `Pinhole1D`/`Slit1D`
-        `weight_matrix`). When supplied with `q_calc`, `G` is built on `q_calc`
-        and smeared back onto the measured `q`; otherwise the unsmeared path runs.
+        `weight_matrix`, 1D models only), or a 1D vector of `nbins` per-point
+        bin weights with `q_calc` holding `nbins * len(q)` points. When
+        supplied with `q_calc`, `G` is built on `q_calc` and smeared back onto
+        the measured `q`; otherwise the unsmeared path runs.
     :return: an `InversionResult`; `scale` is the volume fraction `xi * <V> * 1e4`
 
     Computation runs on the GPU automatically whenever CuPy is installed; inputs
@@ -132,29 +163,43 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
     # contrast: drho = sld - sld_solvent
     drho = float(sld) - float(sld_solvent)
 
+    is_2d = _is_2d(model_class)
+
     # move host inputs onto the compute backend (GPU when CuPy is available)
     # array-module dispatch below and everything downstream run on that backend
-    q, intensity, intensity_std = to_device(q, intensity, intensity_std)
+    intensity, intensity_std = to_device(intensity, intensity_std)
 
     # xp resolves to cupy when the inputs are on the GPU, else numpy
-    xp = get_array_module(q, intensity, intensity_std)
-    q = xp.ascontiguousarray(q, dtype=float)
+    xp = get_array_module(intensity, intensity_std)
     intensity = xp.asarray(intensity, dtype=float)
     intensity_std = xp.asarray(intensity_std, dtype=float)
+    q_list = _q_list(q, is_2d, xp)
     # build grids on the same backend
     param_list = [_build_grid(grids[name], xp) for name in param_names]
 
-    # resolution smearing: build G on the extended q_calc grid and smear it back
-    # onto the measured q with the resolution weight matrix.
+    # resolution smearing: build G on the extended q_calc points and smear it
+    # back onto the measured q with the resolution weights.
     smearing = q_calc is not None and resolution_weights is not None
     if smearing:
-        q_calc, resolution_weights = to_device(q_calc, resolution_weights)
-        q_calc = xp.ascontiguousarray(q_calc, dtype=float)
+        (resolution_weights,) = to_device(resolution_weights)
         resolution_weights = xp.asarray(resolution_weights, dtype=float)
-        G = model_class.compute_smeared_scattering_intensity(
-            [q_calc], resolution_weights, param_list, drho)
+        q_calc_list = _q_list(q_calc, is_2d, xp)
+        if resolution_weights.ndim == 1:
+            # per-point resolution bins (sasmodels Pinhole2D layout)
+            G = model_class.compute_binned_smeared_scattering_intensity(
+                q_calc_list, resolution_weights, param_list, drho
+            )
+        else:
+            # resolution weight matrix (sasmodels Pinhole1D/Slit1D)
+            G = model_class.compute_smeared_scattering_intensity(
+                q_calc_list, resolution_weights, param_list, drho
+            )
+    elif is_2d:
+        G = model_class.compute_scattering_intensity(
+            q_list, param_list, drho, paired=True
+        )
     else:
-        G = model_class.compute_scattering_intensity([q], param_list, drho)
+        G = model_class.compute_scattering_intensity(q_list, param_list, drho)
     xi, background, w_opt_list = optimize(G, intensity, intensity_std, sigma=sigma)
     xi, background = float(xi), float(background)
     # GALAHAD returns numpy weights; move them onto G's backend to reconstruct

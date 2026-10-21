@@ -17,6 +17,7 @@ Author: Jaroslav Fowkes (STFC)
 from ffsi.array_module import get_array_module
 
 from ffsi.models.basemodel import SASModel
+from ffsi.utils import orientation_projections
 
 class Ellipsoid2D(SASModel):
 
@@ -34,7 +35,17 @@ class Ellipsoid2D(SASModel):
         return 4/3 * xp.pi * rp[:,None] * re[None,:] ** 2
 
     @staticmethod
-    def compute_scattering_intensity(q_list, param_list, drho):
+    def compute_scattering_intensity(q_list, param_list, drho, paired=False):
+        """
+        :param q_list: `[qx, qy]`; the axes of a regular grid, or paired detector
+            points when `paired` is True
+        :param param_list: `[rp, re, theta, phi]`, angles in radians
+        :param drho: difference between scattering length densities
+        :param paired: evaluate on paired points `(qx[n], qy[n])` instead of the
+            `qx` x `qy` grid
+        :return: `G` of shape `(nqx, nqy, nrp, nre, ntheta, nphi)`, or
+            `(nq, nrp, nre, ntheta, nphi)` when `paired`
+        """
 
         # extract parameters
         qx, qy = q_list[0], q_list[1]
@@ -48,20 +59,22 @@ class Ellipsoid2D(SASModel):
         # ellipsoid volume
         V = Ellipsoid2D.compute_volume(param_list)
 
-        # coordinate transformation
-        sint_cosp = xp.outer(xp.sin(theta), xp.cos(phi))
-        sint_sinp = xp.outer(xp.sin(theta), xp.sin(phi))
-        qc = (qx[:,None,None] * sint_cosp[None,:,:])[:,None,:,:] + \
-            (qy[:,None,None] * sint_sinp[None,:,:])[None,:,:,:]
-        qa = xp.sqrt((qx ** 2)[:,None,None,None] +
-                    (qy ** 2)[None,:,None,None] - qc ** 2)
+        # components of q along (qc) and across (qa) the ellipsoid axis,
+        # shape (*q_shape, ntheta, nphi)
+        qc, qa = orientation_projections(qx, qy, theta, phi, paired=paired)
 
-        # ellipsoid scattering amplitude
-        qa_re = xp.moveaxis(qa[:,:,:,:,None] * re[None,None,None,None,:], 4, 2)
-        qc_rp = xp.moveaxis(qc[:,:,:,:,None] * rp[None,None,None,None,:], 4, 2)
-        qr = xp.sqrt((qa_re ** 2)[:,:,None,:,:,:] + (qc_rp ** 2)[:,:,:,None,:,:])
+        # ellipsoid scattering amplitude, shape (*q_shape, nrp, nre, ntheta, nphi)
+        qa_re = qa[..., None, :, :] * re[:, None, None]  # (*q_shape, nre, ntheta, nphi)
+        qc_rp = qc[..., None, :, :] * rp[:, None, None]  # (*q_shape, nrp, ntheta, nphi)
+        qr = xp.sqrt((qa_re ** 2)[..., None, :, :, :] + (qc_rp ** 2)[..., :, None, :, :])
 
-        F = 3 * V[None,None,:,:,None,None] * drho * (xp.sin(qr) - qr * xp.cos(qr)) / qr ** 3
+        # 3 (sin x - x cos x) / x^3, using its series 1 - x^2/10 near 0 where the
+        # closed form cancels catastrophically (and is 0/0 at q = 0)
+        small = qr < 1e-3
+        qr_safe = xp.where(small, 1.0, qr)
+        form = xp.where(small, 1 - qr ** 2 / 10,
+                        3 * (xp.sin(qr_safe) - qr_safe * xp.cos(qr_safe)) / qr_safe ** 3)
+        F = V[:, :, None, None] * drho * form
 
         # scattering intensity (Green's function)
         return F ** 2

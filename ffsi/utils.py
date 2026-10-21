@@ -61,6 +61,47 @@ def smear_tensor_2d(G, w):
     # smear tensor in x and y with Gaussian weight vector and normalize
     return xp.einsum('ijkl...,i,k -> jl...', G_reshaped, w, w, optimize=True) / (xp.sum(w) ** 2)
 
+def orientation_projections(qx, qy, theta, phi, paired=False):
+    """
+    Project 2D scattering vectors onto the particle axis for every orientation.
+
+    The particle axis is `(sin(theta)cos(phi), sin(theta)sin(phi), cos(theta))`
+    and q lies in the detector plane `(qx, qy, 0)` (the sasmodels convention).
+
+    :param qx: x components of q (1D)
+    :param qy: y components of q (1D)
+    :param theta: axis-to-beam angles in radians (1D)
+    :param phi: axis rotations about the beam in radians (1D)
+    :param paired: if True, `qx[n], qy[n]` are paired detector pixels (equal
+        lengths) and the q shape is `(nq,)`; otherwise `qx` and `qy` are the axes
+        of a regular grid and the q shape is `(nqx, nqy)`
+    :return: `(qc, qa)`, the components of q along and perpendicular to the
+        axis, each of shape `(*q_shape, ntheta, nphi)`
+    """
+
+    # use CPU or GPU as appropriate
+    xp = get_array_module(qx, qy, theta, phi)
+
+    sint_cosp = xp.outer(xp.sin(theta), xp.cos(phi))
+    sint_sinp = xp.outer(xp.sin(theta), xp.sin(phi))
+
+    if paired:
+        qx_b, qy_b = qx[:, None, None], qy[:, None, None]
+    else:
+        qx_b, qy_b = qx[:, None, None, None], qy[None, :, None, None]
+
+    qc = qx_b * sint_cosp + qy_b * sint_sinp
+    # clamp: rounding makes q**2 - qc**2 slightly negative when q is along the axis
+    qa = xp.sqrt(xp.maximum(qx_b ** 2 + qy_b ** 2 - qc ** 2, 0.0))
+    return qc, qa
+
+def safe_sinc(x):
+    """
+    `sin(x)/x` with the limit 1 at x = 0
+    """
+    xp = get_array_module(x)
+    return xp.sinc(x / xp.pi)
+
 def xi_to_scale(xi, average_volume):
     """
     Convert `xi` to SasView volume-fraction `scale`.
