@@ -100,11 +100,11 @@ def _build_grid(spec, xp):
 def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma=None,
            q_calc=None, resolution_weights=None):
     """
-    Free-form inversion of 1D SAS data.
+    Free-form inversion of 1D or 2D SAS data.
 
-    :param model: model name ('sphere', 'cylinder', 'ellipsoid';
-    :param q: scattering vectors
-    :param intensity: measured intensity `I(q)`
+    :param model: model name ('sphere', 'cylinder', 'ellipsoid', 'cylinder2d', 'ellipsoid2d')
+    :param q: scattering vectors; for 2D models the `(qx, qy)` axes of a regular grid
+    :param intensity: measured intensity `I(q)`, shape `(nqx, nqy)` for 2D models
     :param intensity_std: intensity standard deviations `dI(q)`
     :param grids: `dict` keyed by the model's parameter names; each value
         is a `(min, max, nbins)` triple or a prebuilt 1D array of bin centers
@@ -118,6 +118,7 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
         `(len(q_calc), len(q))` (e.g. sasmodels `Pinhole1D`/`Slit1D`
         `weight_matrix`). When supplied with `q_calc`, `G` is built on `q_calc`
         and smeared back onto the measured `q`; otherwise the unsmeared path runs.
+        For 2D models pass sasmodels `Pinhole2D` `q_calc` and `q_calc_weights`.
     :return: an `InversionResult`; `scale` is the volume fraction `xi * <V> * 1e4`
 
     Computation runs on the GPU automatically whenever CuPy is installed; inputs
@@ -134,11 +135,22 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
 
     # move host inputs onto the compute backend (GPU when CuPy is available)
     # array-module dispatch below and everything downstream run on that backend
-    q, intensity, intensity_std = to_device(q, intensity, intensity_std)
+    intensity, intensity_std = to_device(intensity, intensity_std)
 
     # xp resolves to cupy when the inputs are on the GPU, else numpy
-    xp = get_array_module(q, intensity, intensity_std)
-    q = xp.ascontiguousarray(q, dtype=float)
+    xp = get_array_module(intensity, intensity_std)
+
+    # 2D models take q as the (qx, qy) axes of a regular grid
+    is_2d = "2D" in model_class.__name__
+
+    def q_list(q):
+        result = [
+            xp.ascontiguousarray(a, dtype=float)
+            for a in to_device(*(q if is_2d else [q]))
+        ]
+        print(f"type:{type(result)}, data: {result}")
+        return result
+
     intensity = xp.asarray(intensity, dtype=float)
     intensity_std = xp.asarray(intensity_std, dtype=float)
     # build grids on the same backend
@@ -148,20 +160,22 @@ def invert(model, q, intensity, intensity_std, grids, *, sld, sld_solvent, sigma
     # onto the measured q with the resolution weight matrix.
     smearing = q_calc is not None and resolution_weights is not None
     if smearing:
-        q_calc, resolution_weights = to_device(q_calc, resolution_weights)
-        q_calc = xp.ascontiguousarray(q_calc, dtype=float)
+        (resolution_weights,) = to_device(resolution_weights)
         resolution_weights = xp.asarray(resolution_weights, dtype=float)
         G = model_class.compute_smeared_scattering_intensity(
-            [q_calc], resolution_weights, param_list, drho)
+            q_list(q_calc), resolution_weights, param_list, drho
+        )
     else:
-        G = model_class.compute_scattering_intensity([q], param_list, drho)
+        G = model_class.compute_scattering_intensity(q_list(q), param_list, drho)
     xi, background, w_opt_list = optimize(G, intensity, intensity_std, sigma=sigma)
     xi, background = float(xi), float(background)
     # GALAHAD returns numpy weights; move them onto G's backend to reconstruct
     w_list = [xp.asarray(w) for w in w_opt_list]
 
     # fitted intensity, residuals and chi-squared
-    theory = xi * contract_tensor(G, w_list, skip_axes=[0]) + background
+    theory = (
+        xi * contract_tensor(G, w_list, skip_axes=[0, 1] if is_2d else [0]) + background
+    )
     residuals = (theory - intensity) / intensity_std
     chi2 = float(xp.sum(residuals**2) / residuals.size)
 
