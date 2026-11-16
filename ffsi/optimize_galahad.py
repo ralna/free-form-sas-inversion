@@ -8,6 +8,10 @@ I_data_std - error on intensity data
 
 Optional Parameters:
 sigma - regularization parameter value
+user_options - dict of GALAHAD SNLS options overriding the defaults below
+          (nested dicts, e.g. {'slls_options': {'maxit': 1000}}, are merged)
+history - list to which (wall-clock time, chi^2) tuples are appended at each
+          residual evaluation, where chi^2 is the unregularized data misfit
 
 Returns:
 xi_opt - optimal xi
@@ -21,6 +25,7 @@ xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std)
 Copyright (C) 2026 The Science and Technology Facilities Council (STFC)
 Author: Jaroslav Fowkes (STFC)
 """
+import time
 import numpy as np
 from galahad import snls
 
@@ -34,7 +39,7 @@ from ffsi.utils import contract_tensor
 # but 32-bit on Windows.
 GALAHAD_INT = np.dtype("l")
 
-def optimize(G, I_data, I_data_std, sigma=None):
+def optimize(G, I_data, I_data_std, sigma=None, history=None, user_options=None):
 
     # use CPU or GPU as appropriate
     xp = get_array_module(G, I_data, I_data_std)
@@ -100,6 +105,10 @@ def optimize(G, I_data, I_data_std, sigma=None):
 
         # intensity misfit
         eps = (I_model - I_data) / I_data_std
+
+        # record convergence history if requested
+        if history is not None:
+            history.append((time.perf_counter(), float(xp.sum(eps ** 2))))
 
         # handle regularization
         if sigma is None: # no regularization
@@ -178,6 +187,15 @@ def optimize(G, I_data, I_data_std, sigma=None):
     # stopping criteria
     options['stop_pg_relative'] = 1e-15
     options['stop_pg_absolute'] = 1e-7
+
+    # apply any user-supplied option overrides (merging nested dicts)
+    def merge(base, new):
+        for key, value in new.items():
+            if isinstance(value, dict):
+                merge(base[key], value)
+            else:
+                base[key] = value
+    merge(options, user_options or {})
 
     # form and scale initial optimization variable
     x0_scaled = xp.hstack((xi0/xi_sc,b0/b_sc,*w0_list))

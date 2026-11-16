@@ -27,12 +27,12 @@ nq = 200
 # l discretisation
 ll = 200
 lu = 600
-nl = 100
+nl = 50
 
 # r discretisation
 rl = 5
 ru = 35
-nr = 99
+nr = 50
 
 # discretise q, l, r
 q = np.logspace(ql, qu, nq)
@@ -47,8 +47,8 @@ print('r: linspace(%d,%d,%d)' % (rl, ru, nr))
 print("\nStep 1: Generate ground truth\n")
 
 # generate ground truth distribution for length
-boltzmann = 0.7 * np.exp(-np.abs(l - 400) / 25)
-w_l_true = boltzmann
+gaussian = np.exp(-(l - 400)**2 / (2*30**2))
+w_l_true = gaussian
 w_l_true /= w_l_true.sum()  # normalize
 
 # generate ground truth distribution for radius
@@ -95,7 +95,7 @@ plot_1d_intensity(q, I_data)
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=0.25)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 plot_cylinder_distributions([l,r], w_opt_list, title='Optimized distributions')

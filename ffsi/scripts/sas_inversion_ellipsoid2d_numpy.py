@@ -29,13 +29,13 @@ qx = np.linspace(-0.75, 0.75, nqx)
 qy = np.linspace(-0.75, 0.75, nqy)
 
 # rp discretisation
-rpl = 50
-rpu = 90
+rpl = 200
+rpu = 600
 nrp = 18
 
 # re discretisation
-rel = 200
-reu = 600
+rel = 50
+reu = 90
 nre = 17
 
 # theta discretisation
@@ -65,8 +65,8 @@ print('phi: linspace(%d,%d,%d)' % (phil, phiu, nphi))
 print("\nStep 1: Generate ground truth\n")
 
 # generate ground truth distributions
-w_rp_true = crazy_distribution(rp, [(1, 60, 3), (2, 70, 4), (2, 80, 3)], 1, 1, 1)
-w_re_true = crazy_distribution(re, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 1, 1, 1)
+w_rp_true = crazy_distribution(rp, [(1.5, 300, 20), (1, 400, 20), (2, 500, 20)], 1, 1, 1)
+w_re_true = crazy_distribution(re, [(1, 60, 3), (2, 70, 4), (2, 80, 3)], 1, 1, 1)
 w_theta_true = crazy_distribution(theta, [(4, 15, 5), (2, 35, 5), (2, 50, 5)], 2, 1, 1)
 w_phi_true = crazy_distribution(phi, [(2, 170, 10), (2, 200, 10), (4, 220, 10)], 3, 1, 1)
 
