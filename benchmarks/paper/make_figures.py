@@ -2,8 +2,8 @@
 Make all figures and the timing table for the paper from results/*.
 
 Reads $FFSI_PAPER_DIR/results (default: benchmarks/paper/output) and writes the
-figures to $FFSI_PAPER_DIR/figures and the LaTeX tables/macros to
-$FFSI_PAPER_DIR/sections. Run from the repository root with the ffsi environment:
+figures to $FFSI_TEX_DIR/figures and the LaTeX tables/macros to
+$FFSI_TEX_DIR/sections ($FFSI_TEX_DIR defaults to $FFSI_PAPER_DIR). Run from the repository root with the ffsi environment:
   python benchmarks/paper/make_figures.py
 """
 import json
@@ -16,8 +16,12 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 
 import os
-ROOT = Path(os.environ.get('FFSI_PAPER_DIR', Path(__file__).resolve().parent / 'output'))
-RES = ROOT / 'results'
+# results are read from $FFSI_PAPER_DIR; figures and LaTeX tables/macros are written
+# to $FFSI_TEX_DIR (e.g. a clone of the paper's Overleaf project), which defaults to
+# $FFSI_PAPER_DIR
+RES_ROOT = Path(os.environ.get('FFSI_PAPER_DIR', Path(__file__).resolve().parent / 'output'))
+ROOT = Path(os.environ.get('FFSI_TEX_DIR', RES_ROOT))
+RES = RES_ROOT / 'results'
 FIG = ROOT / 'figures'
 FIG.mkdir(parents=True, exist_ok=True)
 (ROOT / 'sections').mkdir(parents=True, exist_ok=True)
@@ -54,8 +58,12 @@ def problem(name):
 
 
 def save(fig, name):
-    fig.savefig(FIG / f'{name}.pdf')
-    fig.savefig(FIG / f'{name}.png', dpi=200)
+    # no timestamp, so that unchanged figures give byte-identical PDFs
+    fig.savefig(FIG / f'{name}.pdf', metadata={'CreationDate': None})
+    # PNG previews go with the results, not into the LaTeX directory
+    png = RES_ROOT / 'figures_png'
+    png.mkdir(parents=True, exist_ok=True)
+    fig.savefig(png / f'{name}.png', dpi=200)
     plt.close(fig)
     print('wrote', name)
 

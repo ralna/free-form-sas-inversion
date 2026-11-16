@@ -52,6 +52,10 @@ Finally, with the ffsi environment:
 python benchmarks/paper/make_figures.py
 ```
 
+The figures and LaTeX tables/macros are written to `$FFSI_TEX_DIR` if set (for
+example a git clone of the paper's Overleaf project), otherwise to
+`$FFSI_PAPER_DIR`.
+
 ## Notes
 
 * **Identical problems.** PyTorch and NumPy/CuPy produce different random
