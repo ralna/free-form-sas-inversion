@@ -87,9 +87,9 @@ def fig_sphere_benchmark():
     _, zf = load('ffsas', 'sphere_benchmark_cuda')
     r, q = P['r'], P['q']
     fig, ax = plt.subplots(1, 2, figsize=(W2, 2.4))
-    ax[0].plot(r, zn['w0'], color=C_FFSI_NOREG, lw=0.9, label=r'ffsi ($\varsigma=0$)')
+    ax[0].plot(r, zn['w0'], color=C_FFSI_NOREG, lw=0.9, label=r'FFSI ($\varsigma=0$)')
     ax[0].plot(r, zf['w0'], color=C_FFSAS, label='FFSAS')
-    ax[0].plot(r, zr['w0'], color=C_FFSI, label=r'ffsi ($\varsigma=0.25$)')
+    ax[0].plot(r, zr['w0'], color=C_FFSI, label=r'FFSI ($\varsigma=0.25$)')
     ax[0].plot(r, P['w_r_true'], color=C_TRUTH, ls='--', lw=1.0, label='Truth')
     ax[0].set_xlabel(r'$r$ (Å)')
     ax[0].set_ylabel(r'$w(r)$')
@@ -97,7 +97,7 @@ def fig_sphere_benchmark():
     ax[1].errorbar(q, P['I_data'], yerr=3 * P['I_data_std'], fmt='none',
                    ecolor=C_DATA, elinewidth=0.5, alpha=0.6, label=r'Data ($\pm3\sigma$)')
     ax[1].plot(q, zf['I_opt'], color=C_FFSAS, label='FFSAS')
-    ax[1].plot(q, zr['I_opt'], color=C_FFSI, ls=':', label=r'ffsi ($\varsigma=0.25$)')
+    ax[1].plot(q, zr['I_opt'], color=C_FFSI, ls=':', label=r'FFSI ($\varsigma=0.25$)')
     ax[1].set_xscale('log'); ax[1].set_yscale('log')
     ax[1].set_xlabel(r'$q$ (Å$^{-1}$)')
     ax[1].set_ylabel(r'$I(q)$ (cm$^{-1}$)')
@@ -132,7 +132,7 @@ def fig_convergence():
         ha, hb = za['history'], zb['history']
         ax.plot(hb[:, 0], np.minimum.accumulate(hb[:, 1]), color=C_FFSAS, label='FFSAS')
         ax.plot(ha[:, 0], np.minimum.accumulate(ha[:, 1]), color=C_FFSI,
-                marker='o', ms=3, label='ffsi')
+                marker='o', ms=3, label='FFSI')
         ax.set_xscale('log'); ax.set_yscale('log')
         ax.set_title(title)
         ax.set_xlabel('wall-clock time (s)')
@@ -157,7 +157,7 @@ def fig_sphere_challenge():
         ax = axes[row, 0]
         notes = []
         for code, name, col, lab in (('ffsas', f'sphere_challenge_{n}_cuda', C_FFSAS, 'FFSAS'),
-                                     ('ffsi', f'sphere_challenge_{n}_gpu_noreg', C_FFSI, 'ffsi')):
+                                     ('ffsi', f'sphere_challenge_{n}_gpu_noreg', C_FFSI, 'FFSI')):
             try:
                 d, z = load(code, name)
             except FileNotFoundError:
@@ -200,7 +200,7 @@ def fig_2d(name, keys, labels, units):
         ax.plot(x, P[f'w_{key}_true'], color=C_TRUTH, ls='--', lw=1.0, label='Truth')
         if zb is not None:
             ax.plot(x, zb[f'w{k}'], color=C_FFSAS, label='FFSAS')
-        ax.plot(x, za[f'w{k}'], color=C_FFSI, ls=':', lw=1.6, label='ffsi')
+        ax.plot(x, za[f'w{k}'], color=C_FFSI, ls=':', lw=1.6, label='FFSI')
         ax.set_xlabel(f'{lab} ({unit})')
         if k == 0:
             ax.set_ylabel('$w$')
@@ -210,7 +210,7 @@ def fig_2d(name, keys, labels, units):
     I = P['I_data']
     panels = [('Data', np.log10(I), 'viridis', {})]
     lims = dict(vmin=-16, vmax=-4)
-    panels.append(('ffsi misfit',
+    panels.append(('FFSI misfit',
                    np.log10(np.abs(za['I_opt'] - I) / I + 1e-300), 'Greys', lims))
     if zb is not None:
         panels.append(('FFSAS misfit',
@@ -238,7 +238,7 @@ def fig_real(dataset):
     r, q = P['r'], P['q']
     fig, ax = plt.subplots(1, 2, figsize=(W2, 2.4))
     for code, name, col, lab, ls in (
-            ('ffsi', f'sphere_{dataset}_gpu_noreg', C_FFSI_NOREG, r'ffsi ($\varsigma=0$)', '-'),
+            ('ffsi', f'sphere_{dataset}_gpu_noreg', C_FFSI_NOREG, r'FFSI ($\varsigma=0$)', '-'),
             ('ffsas', f'sphere_{dataset}_cuda', C_FFSAS, 'FFSAS', '-'),
             ('ffsi', f'sphere_{dataset}_gpu_reg', C_FFSI, None, '-')):
         try:
@@ -246,7 +246,7 @@ def fig_real(dataset):
         except FileNotFoundError:
             continue
         if lab is None:
-            lab = rf'ffsi ($\varsigma={d["sigma"]:g}$)'
+            lab = rf'FFSI ($\varsigma={d["sigma"]:g}$)'
         ax[0].plot(r, vol_weighted(r, z['w0']), color=col, lw=0.9, ls=ls, label=lab)
         ax[1].plot(q, z['I_opt'], color=col, lw=0.9, ls=ls,
                    label=rf'{lab}: $\chi^2/m$={d["chi2"] / len(q):.2f}')
@@ -279,7 +279,7 @@ def fig_1d_aniso():
             x = P[key]
             ax.plot(x, P[f'w_{key}_true'], color=C_TRUTH, ls='--', lw=1.0, label='Truth')
             ax.plot(x, zf[f'w{k}'], color=C_FFSAS, label='FFSAS')
-            ax.plot(x, zn[f'w{k}'], color=C_FFSI, ls=':', lw=1.6, label='ffsi')
+            ax.plot(x, zn[f'w{k}'], color=C_FFSI, ls=':', lw=1.6, label='FFSI')
             ax.set_xlabel(f'{lab} (Å)')
             ax.set_ylabel('$w$')
             ax.set_title(title)
@@ -287,7 +287,7 @@ def fig_1d_aniso():
         q = P['q']
         ax.plot(q, P['I_data'], color=C_DATA, lw=2.5, label='Data')
         ax.plot(q, zf['I_opt'], color=C_FFSAS, label='FFSAS')
-        ax.plot(q, zn['I_opt'], color=C_FFSI, ls=':', lw=1.6, label='ffsi')
+        ax.plot(q, zn['I_opt'], color=C_FFSI, ls=':', lw=1.6, label='FFSI')
         ax.set_xscale('log'); ax.set_yscale('log')
         ax.set_xlabel(r'$q$ (Å$^{-1}$)')
         ax.set_ylabel(r'$I(q)$ (cm$^{-1}$)')
@@ -350,7 +350,7 @@ def summary_table():
                 continue
             out[f'ffsi/{base}_{tag}'] = d
             dev, reg = tag.split('_')
-            rows.append((title, 'ffsi', dev.upper(),
+            rows.append((title, 'FFSI', dev.upper(),
                          f'{d["sigma"]:g}' if reg == 'reg' else '0', d['chi2'], d['G_time'],
                          d['solve_time'], f'{d["n_evals"]} evals'))
         for tag in ffsas_tags:
