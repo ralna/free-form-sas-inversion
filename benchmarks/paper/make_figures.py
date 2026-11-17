@@ -39,7 +39,7 @@ plt.rcParams.update({
     'legend.fontsize': 7, 'xtick.labelsize': 7, 'ytick.labelsize': 7,
     'axes.spines.top': False, 'axes.spines.right': False,
     'axes.edgecolor': INK2, 'xtick.color': INK2, 'ytick.color': INK2,
-    'axes.grid': True, 'grid.color': '#e6e5e1', 'grid.linewidth': 0.5,
+    'axes.grid': True, 'axes.axisbelow': True, 'grid.color': '#e6e5e1', 'grid.linewidth': 0.5,
     'lines.linewidth': 1.2, 'legend.frameon': False,
     'savefig.bbox': 'tight', 'pdf.fonttype': 42,
 })
@@ -87,17 +87,20 @@ def fig_sphere_benchmark():
     _, zf = load('ffsas', 'sphere_benchmark_cuda')
     r, q = P['r'], P['q']
     fig, ax = plt.subplots(1, 2, figsize=(W2, 2.4))
-    ax[0].plot(r, zn['w0'], color=C_FFSI_NOREG, lw=0.9, label=r'FFSI ($\varsigma=0$)')
+    ax[0].plot(r, zn['w0'], color=C_FFSI_NOREG, lw=0.9, label=r'FFSI ($\gamma=0$)')
     ax[0].plot(r, zf['w0'], color=C_FFSAS, label='FFSAS')
-    ax[0].plot(r, zr['w0'], color=C_FFSI, label=r'FFSI ($\varsigma=0.25$)')
+    ax[0].plot(r, zr['w0'], color=C_FFSI, label=r'FFSI ($\gamma=0.25$)')
     ax[0].plot(r, P['w_r_true'], color=C_TRUTH, ls='--', lw=1.0, label='Truth')
     ax[0].set_xlabel(r'$r$ (Å)')
     ax[0].set_ylabel(r'$w(r)$')
-    ax[0].legend()
+    # headroom so the legend clears the right-hand (Boltzmann) peak
+    ax[0].set_ylim(top=1.3 * P['w_r_true'].max())
+    ax[0].legend(loc='upper right')
     ax[1].errorbar(q, P['I_data'], yerr=3 * P['I_data_std'], fmt='none',
-                   ecolor=C_DATA, elinewidth=0.5, alpha=0.6, label=r'Data ($\pm3\sigma$)')
+                   ecolor='#6f6e69', elinewidth=0.7, alpha=0.7, zorder=1,
+                   label=r'Data ($\pm3\sigma$)')
     ax[1].plot(q, zf['I_opt'], color=C_FFSAS, label='FFSAS')
-    ax[1].plot(q, zr['I_opt'], color=C_FFSI, ls=':', label=r'FFSI ($\varsigma=0.25$)')
+    ax[1].plot(q, zr['I_opt'], color=C_FFSI, ls=':', label=r'FFSI ($\gamma=0.25$)')
     ax[1].set_xscale('log'); ax[1].set_yscale('log')
     ax[1].set_xlabel(r'$q$ (Å$^{-1}$)')
     ax[1].set_ylabel(r'$I(q)$ (cm$^{-1}$)')
@@ -190,10 +193,11 @@ def fig_2d(name, keys, labels, units):
         _, zb = load('ffsas', f'{name}_cuda')
     except FileNotFoundError:
         zb = None
-    fig = plt.figure(figsize=(W2, 3.6))
-    gs = fig.add_gridspec(2, 4, height_ratios=[1, 1.15])
+    fig = plt.figure(figsize=(W2, 4.4), layout='constrained')
+    gs = fig.add_gridspec(2, 1, height_ratios=[1, 1.3])
+    top = gs[0].subgridspec(1, 4)
     for k, (key, lab, unit) in enumerate(zip(keys, labels, units)):
-        ax = fig.add_subplot(gs[0, k])
+        ax = fig.add_subplot(top[0, k])
         x = P[key]
         if key in ('theta', 'phi'):
             x = np.rad2deg(x)
@@ -202,9 +206,11 @@ def fig_2d(name, keys, labels, units):
             ax.plot(x, zb[f'w{k}'], color=C_FFSAS, label='FFSAS')
         ax.plot(x, za[f'w{k}'], color=C_FFSI, ls=':', lw=1.6, label='FFSI')
         ax.set_xlabel(f'{lab} ({unit})')
+        # headroom so the legend clears the peaks
+        ax.set_ylim(-0.01, 1.4 * max(P[f'w_{key}_true'].max(), za[f'w{k}'].max()))
         if k == 0:
             ax.set_ylabel('$w$')
-            ax.legend()
+            ax.legend(loc='upper left', ncol=1)
     qx, qy = P['qx'], P['qy']
     ext = [qx.min(), qx.max(), qy.min(), qy.max()]
     I = P['I_data']
@@ -216,19 +222,26 @@ def fig_2d(name, keys, labels, units):
         panels.append(('FFSAS misfit',
                        np.log10(np.abs(zb['I_opt'] - I) / I + 1e-300), 'Greys', lims))
     main_axes = list(fig.axes)
+    bottom = gs[1].subgridspec(1, 3)
+    img_axes = []
     for k, (title, img, cmap, kw) in enumerate(panels):
-        ax = fig.add_subplot(gs[1, k])
+        ax = fig.add_subplot(bottom[0, k])
         main_axes.append(ax)
+        img_axes.append(ax)
         im = ax.imshow(img.T, origin='lower', extent=ext, cmap=cmap, **kw)
         ax.set_title(title)
         ax.set_xlabel(r'$q_x$ (Å$^{-1}$)')
         if k == 0:
             ax.set_ylabel(r'$q_y$ (Å$^{-1}$)')
+            cb = fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+            cb.set_label(r'$\log_{10} I$')
+        else:
+            ax.set_yticklabels([])
         ax.grid(False)
-        cb = fig.colorbar(im, ax=ax, shrink=0.8)
-        cb.set_label(r'$\log_{10} I$' if k == 0 else r'$\log_{10}|I-\mu|/\mu$')
+    # one colorbar for the misfit panels, which share a common scale
+    cb = fig.colorbar(im, ax=img_axes[1:], shrink=0.8, pad=0.02)
+    cb.set_label(r'$\log_{10}|I-\mu|/\mu$')
     label_panels(main_axes)
-    fig.tight_layout()
     save(fig, name)
 
 
@@ -238,7 +251,7 @@ def fig_real(dataset):
     r, q = P['r'], P['q']
     fig, ax = plt.subplots(1, 2, figsize=(W2, 2.4))
     for code, name, col, lab, ls in (
-            ('ffsi', f'sphere_{dataset}_gpu_noreg', C_FFSI_NOREG, r'FFSI ($\varsigma=0$)', '-'),
+            ('ffsi', f'sphere_{dataset}_gpu_noreg', C_FFSI_NOREG, r'FFSI ($\gamma=0$)', '-'),
             ('ffsas', f'sphere_{dataset}_cuda', C_FFSAS, 'FFSAS', '-'),
             ('ffsi', f'sphere_{dataset}_gpu_reg', C_FFSI, None, '-')):
         try:
@@ -246,7 +259,7 @@ def fig_real(dataset):
         except FileNotFoundError:
             continue
         if lab is None:
-            lab = rf'FFSI ($\varsigma={d["sigma"]:g}$)'
+            lab = rf'FFSI ($\gamma={d["sigma"]:g}$)'
         ax[0].plot(r, vol_weighted(r, z['w0']), color=col, lw=0.9, ls=ls, label=lab)
         ax[1].plot(q, z['I_opt'], color=col, lw=0.9, ls=ls,
                    label=rf'{lab}: $\chi^2/m$={d["chi2"] / len(q):.2f}')
@@ -254,7 +267,7 @@ def fig_real(dataset):
     ax[0].set_ylabel(r'volume-weighted $\hat w(r)$')
     ax[0].legend()
     ax[1].errorbar(q, P['I_data'], yerr=P['I_data_std'], fmt='o', ms=1.5,
-                   color=C_DATA, ecolor='#c9c8c3', elinewidth=0.4, zorder=0, label='Data')
+                   color=C_DATA, ecolor='#c9c8c3', elinewidth=0.4, zorder=1, label='Data')
     ax[1].set_xscale('log'); ax[1].set_yscale('log')
     ax[1].xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
     ax[1].set_ylim(bottom=max(1e-4, 0.3 * P['I_data'][P['I_data'] > 0].min()))
@@ -313,7 +326,7 @@ def fig_sans_scan():
         w = np.load(RES / 'smoothing_scan' / f'sphere_SANS_vs{k}.npz')['w0']
         sig = S[k]['sigma'] or 0.0
         ax.plot(r, vol_weighted(r, w) / (r[1] - r[0]), color=c, lw=1.0,
-                label=rf'$\varsigma={sig:.3g}$: $\chi^2/m={S[k]["chi2_red"]:.4f}$')
+                label=rf'$\gamma={sig:.3g}$: $\chi^2/m={S[k]["chi2_red"]:.4f}$')
     ax.set_yscale('log')
     ax.set_ylim(1e-5, 1)
     ax.set_xlabel(r'$r$ (Å)')
@@ -373,7 +386,7 @@ def summary_table():
         tgs = '--' if tg != tg else f'{tg:.2f}'
         lines.append(f'{t} & {code} & {dev} & {reg} & {c2:.1e} & {tgs} & {ts:.2f} & {its} \\\\')
     head = ['\\begin{tabular}{lllcrrrr}', '\\toprule',
-            'Problem & Code & Device & $\\varsigma$ & $\\chi^2$ & $G$ & solve & iterations \\\\',
+            'Problem & Code & Device & $\\gamma$ & $\\chi^2$ & $G$ & solve & iterations \\\\',
             '\\midrule']
     tail = ['\\bottomrule', '\\end{tabular}']
     (ROOT / 'sections' / 'table_timings.tex').write_text('\n'.join(head + lines + tail) + '\n')
