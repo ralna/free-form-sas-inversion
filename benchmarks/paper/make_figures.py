@@ -109,20 +109,20 @@ def fig_sphere_benchmark():
 # --------------------------------------------------------------------------
 CONVERGENCE = [
     # title, ffsi result, FFSAS result
-    ('Sphere benchmark', 'sphere_benchmark_gpu_noreg', 'sphere_benchmark_cuda'),
-    ('Challenge, $n_r=300$', 'sphere_challenge_300_gpu_noreg', 'sphere_challenge_300_cuda'),
+    ('Spheres, benchmark (1D)', 'sphere_benchmark_gpu_noreg', 'sphere_benchmark_cuda'),
+    ('Spheres, challenge (1D)', 'sphere_challenge_300_gpu_noreg', 'sphere_challenge_300_cuda'),
     ('Cylinders (2D)', 'cylinder2d_gpu_noreg', 'cylinder2d_cuda'),
     ('Ellipsoids (2D)', 'ellipsoid2d_gpu_noreg', 'ellipsoid2d_cuda'),
     ('Cylinders (1D)', 'cylinder1d_gpu_noreg', 'cylinder1d_cuda'),
     ('Ellipsoids (1D)', 'ellipsoid1d_gpu_noreg', 'ellipsoid1d_cuda'),
-    ('SANS', 'sphere_SANS_gpu_noreg', 'sphere_SANS_cuda'),
-    ('SAXS', 'sphere_SAXS_gpu_noreg', 'sphere_SAXS_cuda'),
+    ('Spheres, SANS (1D)', 'sphere_SANS_gpu_noreg', 'sphere_SANS_cuda'),
+    ('Spheres, SAXS (1D)', 'sphere_SAXS_gpu_noreg', 'sphere_SAXS_cuda'),
 ]
 
 
 def fig_convergence():
     fig, axes = plt.subplots(2, 4, figsize=(W2, 3.8))
-    for ax, (title, a, b) in zip(axes.ravel(), CONVERGENCE):
+    for k, (ax, (title, a, b)) in enumerate(zip(axes.ravel(), CONVERGENCE)):
         try:
             _, za = load('ffsi', a)
             _, zb = load('ffsas', b)
@@ -134,12 +134,12 @@ def fig_convergence():
         ax.plot(ha[:, 0], np.minimum.accumulate(ha[:, 1]), color=C_FFSI,
                 marker='o', ms=3, label='FFSI')
         ax.set_xscale('log'); ax.set_yscale('log')
-        ax.set_title(title)
+        # panel letter in the title (titles are too wide for label_panels)
+        ax.set_title(rf'$\bf({chr(97 + k)})$ {title}')
         ax.set_xlabel('wall-clock time (s)')
     for ax in axes[:, 0]:
         ax.set_ylabel(r'$\chi^2$')
     axes[0, 0].legend()
-    label_panels(axes)
     fig.tight_layout()
     save(fig, 'convergence')
 
@@ -324,17 +324,17 @@ def fig_sans_scan():
 
 # --------------------------------------------------------------------------
 TABLE = [
-    ('Sphere benchmark', 'sphere_benchmark', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
-    ('Sphere challenge, $n_r=100$', 'sphere_challenge_100', ['gpu_noreg', 'gpu_reg'], ['cuda']),
-    ('Sphere challenge, $n_r=200$', 'sphere_challenge_200', ['gpu_noreg', 'gpu_reg'], ['cuda']),
-    ('Sphere challenge, $n_r=300$', 'sphere_challenge_300', ['gpu_noreg', 'gpu_reg'], ['cuda']),
-    ('Sphere challenge, $n_r=400$', 'sphere_challenge_400', ['gpu_noreg', 'gpu_reg'], ['cuda']),
+    ('Spheres, benchmark (1D)', 'sphere_benchmark', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
+    ('Spheres, challenge (1D, $n_r=100$)', 'sphere_challenge_100', ['gpu_noreg', 'gpu_reg'], ['cuda']),
+    ('Spheres, challenge (1D, $n_r=200$)', 'sphere_challenge_200', ['gpu_noreg', 'gpu_reg'], ['cuda']),
+    ('Spheres, challenge (1D, $n_r=300$)', 'sphere_challenge_300', ['gpu_noreg', 'gpu_reg'], ['cuda']),
+    ('Spheres, challenge (1D, $n_r=400$)', 'sphere_challenge_400', ['gpu_noreg', 'gpu_reg'], ['cuda']),
     ('Cylinders (2D)', 'cylinder2d', ['gpu_noreg'], ['cuda']),
     ('Ellipsoids (2D)', 'ellipsoid2d', ['gpu_noreg'], ['cuda']),
     ('Cylinders (1D)', 'cylinder1d', ['gpu_noreg', 'cpu_noreg'], ['cuda', 'cpu']),
     ('Ellipsoids (1D)', 'ellipsoid1d', ['gpu_noreg', 'cpu_noreg'], ['cuda', 'cpu']),
-    ('SANS', 'sphere_SANS', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
-    ('SAXS', 'sphere_SAXS', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
+    ('Spheres, SANS (1D)', 'sphere_SANS', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
+    ('Spheres, SAXS (1D)', 'sphere_SAXS', ['gpu_reg', 'gpu_noreg', 'cpu_reg', 'cpu_noreg'], ['cuda', 'cpu']),
 ]
 
 
@@ -410,18 +410,19 @@ def time_to_common(case):
 
 
 SPEEDUP_ROWS = [
-    ('Sphere benchmark', 'sphere_benchmark'), ('Sphere challenge, $n_r=100$', 'sphere_challenge_100'),
-    ('Sphere challenge, $n_r=200$', 'sphere_challenge_200'),
-    ('Sphere challenge, $n_r=300$', 'sphere_challenge_300'),
-    ('Sphere challenge, $n_r=400$', 'sphere_challenge_400'),
-    ('SANS (polystyrene latex)', 'sphere_SANS'), ('SAXS (bimodal mixture)', 'sphere_SAXS'),
-    ('Cylinders, 1D', 'cylinder1d'), ('Ellipsoids, 1D', 'ellipsoid1d'),
-    ('Cylinders, 2D', 'cylinder2d'), ('Ellipsoids, 2D', 'ellipsoid2d'),
+    ('Spheres, benchmark (1D)', 'sphere_benchmark'),
+    ('Spheres, challenge (1D, $n_r=100$)', 'sphere_challenge_100'),
+    ('Spheres, challenge (1D, $n_r=200$)', 'sphere_challenge_200'),
+    ('Spheres, challenge (1D, $n_r=300$)', 'sphere_challenge_300'),
+    ('Spheres, challenge (1D, $n_r=400$)', 'sphere_challenge_400'),
+    ('Spheres, SANS (1D)', 'sphere_SANS'), ('Spheres, SAXS (1D)', 'sphere_SAXS'),
+    ('Cylinders (1D)', 'cylinder1d'), ('Ellipsoids (1D)', 'ellipsoid1d'),
+    ('Cylinders (2D)', 'cylinder2d'), ('Ellipsoids (2D)', 'ellipsoid2d'),
 ]
 
 
 def speedup_table():
-    """LaTeX rows: problem, N, m, n, target chi^2, times to target, speed-up."""
+    """LaTeX rows: problem, N, m, n, target chi^2, times to target, speedup."""
     lines = []
     for title, case in SPEEDUP_ROWS:
         try:
@@ -433,10 +434,13 @@ def speedup_table():
         nvar = sum(za[f'w{k}'].size for k in range(npar))
         m = int(np.load(RES / 'ffsi' / f'{case}_gpu_noreg.npz')['I_opt'].size)
         fmt = lambda t: f'{t:.2g}' if t < 10 else f'{t:.0f}'
-        lines.append(f'{title} & {npar} & {m} & {nvar} & ${tex_sci(target).replace(chr(92)*2, chr(92))}$ '
+        # target chi^2 split into mantissa & exponent columns, aligned on the times sign
+        mant, expo = f'{target:.1e}'.split('e')
+        lines.append(f'{title} & {npar} & {m} & {nvar} & {mant} & $10^{{{int(expo)}}}$ '
                      f'& {fmt(t_a)} & {fmt(t_b)} & {fmt(t_b / t_a)} \\\\')
-    head = ['\\begin{tabular}{lrrrcrrr}', '\\toprule',
-            'Problem & $N$ & $m$ & $\\sum_k n_k$ & target $\\chi^2$ & \\ffsi & \\ffsas & speed-up \\\\',
+    head = ['\\begin{tabular}{lrrrr@{${}\\times{}$}lrrr}', '\\toprule',
+            'Problem & $N$ & $m$ & $\\sum_k n_k$ & \\multicolumn{2}{c}{target $\\chi^2$} '
+            '& \\ffsi & \\ffsas & speedup \\\\',
             '\\midrule']
     tail = ['\\bottomrule', '\\end{tabular}']
     (ROOT / 'sections' / 'table_speedup.tex').write_text('\n'.join(head + lines + tail) + '\n')
@@ -476,7 +480,7 @@ def numbers_tex():
         lines.append(f'\\newcommand{{\\speedupTarget{cname}}}{{{r:.2g}}}' if r < 10 else
                      f'\\newcommand{{\\speedupTarget{cname}}}{{{r:.0f}}}')
         lines.append(f'\\newcommand{{\\target{cname}}}{{{tex_sci(target)}}}')
-    # speed-ups (FFSAS GPU solve time / ffsi GPU solve time, unregularized)
+    # speedups (FFSAS GPU solve time / ffsi GPU solve time, unregularized)
     for case, cname in CASE_NAMES.items():
         try:
             a = json.load(open(RES / 'ffsi' / f'{case}_gpu_noreg.json'))['solve_time']
