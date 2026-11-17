@@ -36,6 +36,9 @@ if dataset == 'SANS':
     nr = 1000
     r = cp.linspace(rl, ru, nr)
 
+    # smoothing parameter
+    sigma = 5.0
+
 elif dataset == 'SAXS':
 
     # load SAXS data
@@ -52,6 +55,9 @@ elif dataset == 'SAXS':
     ru = 1200
     nr = 1000
     r = cp.linspace(rl, ru, nr)
+
+    # smoothing parameter
+    sigma = 10.0
 
 # contrast
 drho = 1
@@ -81,7 +87,7 @@ print('G computation time on GPU: %.2f s' % (t1-t0))
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std, sigma=0.25)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data_std, sigma=sigma)
 
 # plot optimized distributions
 plot_sphere_distribution(r.get(), w_opt_list[0], title='Optimized distribution', normalize_by_volume=True)
