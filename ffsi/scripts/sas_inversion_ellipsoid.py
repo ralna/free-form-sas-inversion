@@ -25,14 +25,14 @@ qu = 0
 nq = 200
 
 # rp discretisation
-rpl = 5
-rpu = 35
-nrp = 100
+rpl = 20
+rpu = 60
+nrp = 50
 
 # re discretisation
 rel = 200
 reu = 600
-nre = 99
+nre = 50
 
 # discretise q, l, r
 q = np.logspace(ql, qu, nq)
@@ -47,13 +47,13 @@ print('re: linspace(%d,%d,%d)' % (rel, reu, nre))
 print("\nStep 1: Generate ground truth\n")
 
 # generate ground truth distribution for polar radius
-gaussian = np.exp(-(rp - 20)**2 / (2*2**2))
+gaussian = np.exp(-(rp - 40)**2 / (2*4**2))
 w_rp_true = gaussian
 w_rp_true /= w_rp_true.sum()  # normalize
 
 # generate ground truth distribution for equatorial radius
-boltzmann = 0.7 * np.exp(-np.abs(re - 400) / 25)
-w_re_true = boltzmann
+gaussian = np.exp(-(re - 400)**2 / (2*30**2))
+w_re_true = gaussian
 w_re_true /= w_re_true.sum()  # normalize
 
 # plot "true" distributions
@@ -95,7 +95,7 @@ plot_1d_intensity(q, I_data)
 
 ## Step 2: SAS Inversion with true G
 print("\nStep 2: SAS inversion with true G\n")
-xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=0.25)
+xi_opt, b_opt, w_opt_list = optimize(G, I_data, I_data, sigma=None)
 
 # plot optimized distributions
 plot_ellipsoid_distributions([rp,re], w_opt_list, title='Optimized distributions')

@@ -13,10 +13,10 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 authors = [
-    {name = "Jaroslav Fowkes", email = "jaroslav.fowkes@maths.ox.ac.uk"}
+    {name = "Jaroslav Fowkes", email = "jaroslav.fowkes@stfc.ac.uk"}
 ]
 maintainers = [
-    {name = "Jaroslav Fowkes", email = "jaroslav.fowkes@maths.ox.ac.uk"}
+    {name = "Jaroslav Fowkes", email = "jaroslav.fowkes@stfc.ac.uk"}
 ]
 description = "A package for the free-form inversion of Small Angle Scattering problems arising from X-ray and Neutron sources"
 readme = "README.md"
