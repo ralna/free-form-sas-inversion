@@ -1,0 +1,56 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# cancel superseded runs on the same branch or pull request
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.suite }} (Python ${{ matrix.python }})
+    # galahad-optrove <= 5.5.3 needs an executable stack, which the glibc in
+    # ubuntu-26.04 (ubuntu-latest) refuses; go back to ubuntu-latest once a
+    # fixed release is on PyPI
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # one job per test file: tests/test_<suite>.py
+        suite: [api, solver, models, utils, sensitivity]
+        # oldest supported and newest available
+        python: ["3.10", "3.14"]
+    env:
+      # GitHub runners have no GPU (ffsi falls back to NumPy) and no OpenCL
+      # device (sasmodels uses its compiled C kernels)
+      SAS_OPENCL: none
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ffsi and pytest
+        run: pip install . pytest
+
+      - name: Install sasmodels (reference implementation)
+        if: matrix.suite == 'models'
+        run: pip install sasmodels
+
+      # run from outside the checkout so the installed package is tested,
+      # not the source tree
+      - name: Run tests
+        working-directory: ${{ runner.temp }}
+        run: python -m pytest "$GITHUB_WORKSPACE/tests/test_${{ matrix.suite }}.py" -ra
