@@ -13,6 +13,7 @@ from ffsi.models.cylinder2d import Cylinder2D
 from ffsi.models.ellipsoid import Ellipsoid
 from ffsi.models.ellipsoid2d import Ellipsoid2D
 from ffsi.models.sphere import Sphere
+from ffsi.models.utils import gauss_legendre
 from ffsi.utils import scale_to_xi
 
 
@@ -26,8 +27,7 @@ SLD = 4.0
 SLD_SOLVENT = 1.0
 DRHO = SLD - SLD_SOLVENT
 
-# q range over which ffsi's fixed 76-point quadrature is accurate for the
-# sizes below (see TestQuadratureLimit for where it is not)
+# q range for the model comparisons (TestAdaptiveQuadrature covers larger q*r)
 Q_1D = np.logspace(-3, np.log10(0.5), 60)
 QX_2D = np.linspace(-0.2, 0.2, 16)  # even lengths keep q = 0 off the grid
 QY_2D = np.linspace(-0.15, 0.15, 12)
@@ -141,37 +141,133 @@ class TestAgainstSasmodels:
 
 
 @needs_sasmodels
-class TestQuadratureLimit:
+class TestAdaptiveQuadrature:
     """
-    Document a known limitation: the 1D cylinder and ellipsoid integrate over
-    orientation with a fixed 76-point Gauss-Legendre rule, which is not
-    accurate once q times the largest dimension reaches a few hundred.
-    This matches sasmodels up to 1.0.x (SasView up to 6.1), which used the
-    same fixed rule (lib/gauss76.c). Since sasmodels 1.1.0 (bundled with
-    SasView 6.2.0) lib/adaptive.c picks 20, 76, 500 or 5000 points from
-    q * r_max (thresholds 10, 100, 750), which stays accurate.
-
-    These are strict xfails, so they will start failing (and should be turned
-    into ordinary tests) once ffsi's quadrature is made adaptive.
+    Test that the 1D cylinder and ellipsoid, which integrate over orientation
+    with SasView's adaptive Gauss-Legendre rule (20, 76, 500 or 5000 points
+    chosen from q * r_max), match sasmodels where the integrand oscillates
+    fastest and on either side of each change in the number of points.
     """
 
-    @pytest.mark.xfail(strict=True, reason="fixed 76-point quadrature at large q*L")
     def test_long_cylinder_matches_sasmodels_at_high_q(self):
+        """
+        Test q * L/2 up to 500, where a fixed 76 point rule is off by up to 6%
+        """
         q = np.logspace(-3, 0, 60)
         expected = sasmodels_intensity("cylinder", [q], length=1000.0, radius=10.0)
         actual = ffsi_intensity(Cylinder, [q], [1000.0, 10.0])
 
-        np.testing.assert_allclose(actual, expected, rtol=1e-6)
+        np.testing.assert_allclose(actual, expected, rtol=1e-10)
 
-    @pytest.mark.xfail(strict=True, reason="fixed 76-point quadrature at large q*r")
     def test_large_oblate_ellipsoid_matches_sasmodels_at_high_q(self):
+        """
+        Test q * re up to 800, which reaches the 5000 point rule
+        """
         q = np.logspace(-3, 0, 60)
         expected = sasmodels_intensity(
             "ellipsoid", [q], radius_polar=30.0, radius_equatorial=800.0
         )
         actual = ffsi_intensity(Ellipsoid, [q], [30.0, 800.0])
 
-        np.testing.assert_allclose(actual, expected, rtol=1e-6)
+        np.testing.assert_allclose(actual, expected, rtol=1e-10)
+
+    @pytest.mark.parametrize("case", ["cylinder", "ellipsoid"])
+    def test_models_match_sasmodels_either_side_of_each_threshold(self, case):
+        """
+        Test q * r_max just below and above 10, 100 and 750, and at 2000,
+        so that each rule is used and the switch points agree with sasmodels
+        """
+        r_max = 500.0
+        q = np.array(
+            [t * f / r_max for t in (10, 100, 750) for f in (1 - 1e-9, 1 + 1e-9)]
+            + [2000 / r_max]
+        )
+        if case == "cylinder":
+            expected = sasmodels_intensity("cylinder", [q], length=2 * r_max, radius=20.0)
+            actual = ffsi_intensity(Cylinder, [q], [2 * r_max, 20.0])
+        else:
+            expected = sasmodels_intensity(
+                "ellipsoid", [q], radius_polar=r_max, radius_equatorial=30.0
+            )
+            actual = ffsi_intensity(Ellipsoid, [q], [r_max, 30.0])
+
+        np.testing.assert_allclose(actual, expected, rtol=1e-10)
+
+
+class TestGaussLegendre:
+    """
+    Test the adaptive Gauss-Legendre generator in `ffsi.models.utils`: the
+    rule chosen for each q * r_max, the exactness of each rule, and that its
+    blocks of points add up to the full rule.
+    """
+
+    # one entry in each range, as (q * r_max, number of points)
+    RANGES = [(5.0, 20), (50.0, 76), (500.0, 500), (5000.0, 5000)]
+
+    def _rules(self, qr_max, **kwargs):
+        """
+        The full rule used for each entry of qr_max, as {entry: (z, w)},
+        joining the blocks that gauss_legendre yields for it.
+        """
+        rules = {}
+        for index, z, w in gauss_legendre(np, qr_max, **kwargs):
+            for entry in zip(*(i.tolist() for i in index)):
+                z_all, w_all = rules.get(entry, ([], []))
+                rules[entry] = (z_all + z.tolist(), w_all + w.tolist())
+        return {e: (np.array(z), np.array(w)) for e, (z, w) in rules.items()}
+
+    def test_gauss_legendre_chooses_the_number_of_points_from_qr_max(self):
+        qr_max = np.array([qr for qr, _ in self.RANGES])
+        rules = self._rules(qr_max)
+
+        assert sorted(rules) == [(i,) for i in range(len(self.RANGES))]
+        for i, (_, n) in enumerate(self.RANGES):
+            assert rules[(i,)][0].size == n
+
+    @pytest.mark.parametrize("qr, n", RANGES)
+    def test_each_rule_integrates_polynomials_exactly(self, qr, n):
+        """
+        Test that the n point rule integrates x^k exactly on [-1,1] for
+        k <= 50 (the rules are exact up to degree 2n-1 >= 39, so only
+        k < 2n is checked). The tolerance allows for SasView's tables being
+        printed to 16 significant figures, which limits the 500 and 5000
+        point rules to relative errors of about 1e-12 and 1e-11.
+        """
+        z, w = self._rules(np.array([qr]))[(0,)]
+
+        assert np.all(np.diff(z) > 0)
+        for k in range(min(51, 2 * n)):
+            exact = 2 / (k + 1) if k % 2 == 0 else 0.0
+            assert w @ z**k == pytest.approx(exact, rel=1e-10, abs=1e-13)
+
+    def test_blocks_add_up_to_the_full_rule(self):
+        """
+        Test that limiting the block size (here 4 points, as 2^24 elements
+        are shared by 2^22 elements per point) splits the 5000 point rule
+        into blocks that join back into the unsplit rule
+        """
+        qr_max = np.array([5000.0])
+        blocks = [
+            z for _, z, _ in gauss_legendre(np, qr_max, elements_per_point=2**22)
+        ]
+        z_split, w_split = self._rules(qr_max, elements_per_point=2**22)[(0,)]
+        z_full, w_full = self._rules(qr_max)[(0,)]
+
+        assert len(blocks) == 1250
+        assert max(b.size for b in blocks) == 4
+        np.testing.assert_array_equal(z_split, z_full)
+        np.testing.assert_array_equal(w_split, w_full)
+
+    def test_index_selects_entries_of_a_multidimensional_qr_max(self):
+        """
+        Test that the index is a nonzero-style tuple with one array per axis
+        """
+        qr_max = np.array([[[5.0, 50.0]], [[500.0, 5.0]]])  # shape (2, 1, 2)
+        rules = self._rules(qr_max)
+
+        assert {e: rules[e][0].size for e in rules} == {
+            (0, 0, 0): 20, (0, 0, 1): 76, (1, 0, 0): 500, (1, 0, 1): 20,
+        }
 
 
 # --------------------------------------------------- 2D vs 1D consistency
