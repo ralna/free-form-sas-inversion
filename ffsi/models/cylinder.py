@@ -45,27 +45,43 @@ class Cylinder(SASModel):
         # cylinder volume
         V = Cylinder.compute_volume(param_list)
 
-        # theta is Gauss-Legendre points in [0,pi/2]
-        z, w = gauss_legendre(xp) # in [-1,1]
+        # integrate over theta in [0,pi/2] using Gauss-Legendre quadrature
         zm = xp.pi/4 # (b-a)/2
         zb = xp.pi/4 # (a+b)/2
-        theta = zm * z + zb # change from [-1,1] to [a,b] integral
 
-        # sine and cosine terms
-        sin_theta = xp.sin(theta)
-        qs = q[:,None] * sin_theta[None,:]
-        qc = q[:,None] * xp.cos(theta)[None,:]
+        # quadrature for each (q,l,r) depends on q times the largest dimension
+        qr_max = q[:,None,None] * xp.maximum(0.5 * l[:,None], r[None,:])[None,:,:]
 
-        # cylinder scattering amplitude
-        hqcl = 0.5 * xp.moveaxis(qc[:,:,None] * l[None,None,:], 1, 2)
-        qsr = xp.moveaxis(qs[:,:,None] * r[None,None,:], 1, 2)
-        sin_hqcl = xp.sin(hqcl) / hqcl
-        j1_qsr = xps.special.j1(qsr) / qsr
-        F = 2 * V[None,:,:,None] * drho * sin_hqcl[:,:,None,:] * j1_qsr[:,None,:,:]
+        # integrate blocks of quadrature points at once
+        F2 = xp.zeros(qr_max.shape)
+        grid_elements = q.size * max(l.size, r.size) # (q,l) and (q,r) grids below
+        for (iq, il, ir), z, w in gauss_legendre(xp, qr_max, elements_per_point=grid_elements):
 
-        # integrate scattering intensity over theta using Gaussian quadrature
-        F2 = xp.sum(w[None,None,None,:] * (F**2) * sin_theta[None,None,None,:], axis=-1)
+            # theta is Gauss-Legendre points in [0,pi/2]
+            theta = zm * z + zb # change from [-1,1] to [a,b] integral
+            sin_theta = xp.sin(theta)
+            cos_theta = xp.cos(theta)
+
+            # sine and cosine terms
+            qs = sin_theta[:,None] * q[None,:]
+            qc = cos_theta[:,None] * q[None,:]
+
+            # the amplitude separates into l and r factors, so evaluate
+            # them on the (q,l) and (q,r) grids (j1 is the costly part)
+            hqcl = 0.5 * qc[:,:,None] * l[None,None,:]
+            qsr = qs[:,:,None] * r[None,None,:]
+            sin_hqcl = xp.sin(hqcl) / hqcl
+            j1_qsr = xps.special.j1(qsr) / qsr
+
+            # cylinder scattering amplitude (without the volume and contrast)
+            F = 2 * sin_hqcl[:, iq, il] * j1_qsr[:, iq, ir]
+
+            # scattering intensity contribution
+            F2[iq, il, ir] += (w * sin_theta) @ F**2
         F2 *= zm # change from [-1,1] to [a,b] integral
+
+        # scale by the volume and contrast
+        F2 *= (V * drho)[None,:,:] ** 2
 
         # scattering intensity (Green's function)
         return F2
